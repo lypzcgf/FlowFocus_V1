@@ -637,8 +637,10 @@ async function loadRewriteHistory() {
         recordsList.innerHTML = records.map(record => `
             <div class="record-item" data-id="${record.id}">
                 <div class="record-info">
-                    <input type="checkbox" class="record-checkbox" data-name="${record.name}">
-                    <strong>${record.name}</strong>
+                    <label class="checkbox-label">
+                        <input type="checkbox" class="record-checkbox" data-name="${record.name}">
+                        <strong>${record.name}</strong>
+                    </label>
                 </div>
                 <div class="record-actions">
                     <button class="edit-btn" data-name="${record.name}">编辑</button>
