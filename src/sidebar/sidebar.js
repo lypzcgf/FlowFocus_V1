@@ -88,6 +88,7 @@ function initRewriteTab() {
     const copyOriginalBtn = document.getElementById('copyOriginalBtn');
     const clearOriginalBtn = document.getElementById('clearOriginalBtn');
     const startRewriteBtn = document.getElementById('startRewriteBtn');
+    const clearPromptBtn = document.getElementById('clearPromptBtn');
     const copyResultBtn = document.getElementById('copyResultBtn');
     const saveResultBtn = document.getElementById('saveResultBtn');
     const selectAllRecords = document.getElementById('selectAllRecords');
@@ -104,6 +105,7 @@ function initRewriteTab() {
     copyOriginalBtn.addEventListener('click', copyOriginalText);
     clearOriginalBtn.addEventListener('click', clearOriginalText);
     startRewriteBtn.addEventListener('click', startRewrite);
+    clearPromptBtn.addEventListener('click', clearRewritePrompt);
     copyResultBtn.addEventListener('click', copyRewriteResult);
     saveResultBtn.addEventListener('click', saveRewriteResult);
     selectAllRecords.addEventListener('change', toggleAllRecords);
@@ -465,6 +467,12 @@ function copyOriginalText() {
 function clearOriginalText() {
     document.getElementById('originalText').value = '';
     showAlert('已清空原文', 'success');
+}
+
+// 清空改写提示词
+function clearRewritePrompt() {
+    document.getElementById('rewritePrompt').value = '';
+    showAlert('已清空改写提示词', 'success');
 }
 
 // 开始改写

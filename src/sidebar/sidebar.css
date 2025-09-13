@@ -201,7 +201,6 @@ body {
 }
 
 /* 单独的按钮 */
-button#startRewriteBtn,
 button#saveConfigBtn,
 button#testConnectionBtn {
     padding: 10px 16px;
@@ -211,15 +210,26 @@ button#testConnectionBtn {
     margin-top: 8px;
 }
 
-button#startRewriteBtn:hover,
 button#saveConfigBtn:hover,
 button#testConnectionBtn:hover {
     background-color: #218838;
 }
 
-button#startRewriteBtn:disabled,
 button#saveConfigBtn:disabled,
 button#testConnectionBtn:disabled {
+    background-color: #6c757d;
+}
+
+/* 开始改写按钮特殊样式 */
+button#startRewriteBtn {
+    background-color: #28a745;
+}
+
+button#startRewriteBtn:hover {
+    background-color: #218838;
+}
+
+button#startRewriteBtn:disabled {
     background-color: #6c757d;
 }
 
