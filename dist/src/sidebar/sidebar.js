@@ -134,6 +134,20 @@ function fillModelDefaults() {
     }
 }
 
+// 退出编辑模式
+function exitEditMode() {
+    // 清空所有表单字段
+    document.getElementById('configName').value = '';
+    document.getElementById('apiKey').value = '';
+    document.getElementById('baseUrl').value = '';
+    document.getElementById('modelEndpoint').value = '';
+    document.getElementById('configId').value = ''; // 清空配置ID，退出编辑模式
+    
+    // 重置模型类型选择并填充默认值
+    document.getElementById('modelType').value = 'qwen'; // 重置为默认选项
+    fillModelDefaults(); // 重新填充默认值
+}
+
 // 保存模型配置
 async function saveModelConfig() {
     try {
@@ -156,19 +170,9 @@ async function saveModelConfig() {
             return;
         }
         
-        // 检查是否存在同名配置（排除正在编辑的配置）
-        const existingConfig = await storageService.getModelConfig(configName);
-        if (existingConfig && existingConfig.id !== configId) {
-            // 如果存在同名配置且不是当前编辑的配置，询问用户是否覆盖
-            if (!confirm(`已存在名为 "${configName}" 的配置，是否要覆盖？`)) {
-                return; // 用户选择不覆盖，放弃保存操作
-            }
-        }
-        
         let config;
         if (configId) {
-            // 如果存在configId，说明是编辑模式，获取现有配置
-            // 使用 loadModelConfigs 获取所有配置，然后通过 find 根据 ID 查找配置
+            // 编辑模式：通过ID查找并更新配置
             const configs = await storageService.loadModelConfigs();
             const foundConfig = configs.find(c => c.id === configId);
             if (!foundConfig) {
@@ -184,17 +188,33 @@ async function saveModelConfig() {
             foundConfig.updatedAt = new Date().toISOString();
             config = foundConfig;
         } else {
-            // 创建新配置对象
-            config = {
-                id: generateUUID(),
-                name: configName,
-                modelType: modelType,
-                apiKey: apiKey, // 在实际应用中应该加密存储
-                baseUrl: baseUrl,
-                modelEndpoint: modelEndpoint,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            };
+            // 非编辑模式：检查是否存在同名配置
+            const existingConfig = await storageService.getModelConfig(configName);
+            if (existingConfig) {
+                // 如果存在同名配置，询问用户是否覆盖
+                if (!confirm(`已存在名为 "${configName}" 的配置，是否要覆盖？`)) {
+                    return; // 用户选择不覆盖，放弃保存操作
+                }
+                // 用户选择覆盖，更新现有配置
+                existingConfig.modelType = modelType;
+                existingConfig.apiKey = apiKey;
+                existingConfig.baseUrl = baseUrl;
+                existingConfig.modelEndpoint = modelEndpoint;
+                existingConfig.updatedAt = new Date().toISOString();
+                config = existingConfig;
+            } else {
+                // 创建新配置对象
+                config = {
+                    id: generateUUID(),
+                    name: configName,
+                    modelType: modelType,
+                    apiKey: apiKey, // 在实际应用中应该加密存储
+                    baseUrl: baseUrl,
+                    modelEndpoint: modelEndpoint,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+            }
         }
         
         // 保存配置
@@ -202,13 +222,7 @@ async function saveModelConfig() {
         
         showAlert('配置已保存', 'success');
         
-        // 不再清空表单，保留用户输入的内容以便后续操作
-        // document.getElementById('configName').value = '';
-        // document.getElementById('apiKey').value = '';
-        // document.getElementById('baseUrl').value = '';
-        // document.getElementById('modelEndpoint').value = '';
-        
-        // 清空configId字段
+        // 保存成功后，只清空configId字段退出编辑模式，保留表单内容
         document.getElementById('configId').value = '';
         
         // 重新加载配置列表
