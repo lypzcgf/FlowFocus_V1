@@ -265,6 +265,7 @@ async function loadModelConfigs() {
         configsList.innerHTML = configs.map(config => `
             <div class="config-item" data-id="${config.id}">
                 <div class="config-info">
+                    <input type="checkbox" class="config-checkbox" data-name="${config.name}">
                     <strong>${config.name}</strong>
                     <span>${config.modelType}模型</span>
                 </div>
@@ -339,7 +340,7 @@ async function deleteModelConfig(configName) {
 
 // 切换所有配置选择状态
 function toggleAllConfigs() {
-    const checkboxes = document.querySelectorAll('#configsList input[type="checkbox"]');
+    const checkboxes = document.querySelectorAll('#configsList .config-checkbox');
     const selectAll = document.getElementById('selectAllConfigs').checked;
     
     checkboxes.forEach(checkbox => {
@@ -353,10 +354,11 @@ async function deleteSelectedConfigs() {
     const selectedConfigs = [];
     
     configItems.forEach(item => {
-        // 在当前实现中，我们没有复选框，所以这里简化处理
-        // 实际应用中应该检查复选框状态
-        const configName = item.querySelector('.delete-btn').getAttribute('data-name');
-        selectedConfigs.push(configName);
+        const checkbox = item.querySelector('.config-checkbox');
+        if (checkbox && checkbox.checked) {
+            const configName = checkbox.getAttribute('data-name');
+            selectedConfigs.push(configName);
+        }
     });
     
     if (selectedConfigs.length === 0) {
