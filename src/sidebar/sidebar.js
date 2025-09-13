@@ -92,6 +92,12 @@ function initRewriteTab() {
     const saveResultBtn = document.getElementById('saveResultBtn');
     const selectAllRecords = document.getElementById('selectAllRecords');
     const deleteSelectedRecordsBtn = document.getElementById('deleteSelectedRecordsBtn');
+    const rewritePrompt = document.getElementById('rewritePrompt');
+    
+    // 设置改写提示词文本框的默认值
+    if (rewritePrompt && !rewritePrompt.value) {
+        rewritePrompt.value = '将网页选中文字翻译成英文';
+    }
     
     // 绑定事件
     getSelectedTextBtn.addEventListener('click', getSelectedText);
