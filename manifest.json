@@ -27,7 +27,6 @@
     }
   ],
   "action": {
-    "default_title": "FlowFocus",
-    "default_popup": "src/sidebar/popup.html"
+    "default_title": "FlowFocus"
   }
 }

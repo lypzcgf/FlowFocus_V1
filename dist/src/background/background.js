@@ -24,6 +24,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
+// 监听扩展图标点击事件，直接打开侧边栏
+chrome.action.onClicked.addListener(async (tab) => {
+  try {
+    // 获取当前窗口ID
+    const windowId = tab.windowId;
+    // 打开侧边栏
+    await chrome.sidePanel.open({windowId});
+  } catch (error) {
+    console.error('Error opening side panel:', error);
+  }
+});
+
 /**
  * 处理文本改写请求
  * @param {Object} data - 请求数据
