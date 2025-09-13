@@ -103,12 +103,12 @@ async function saveModelConfig() {
         
         // 验证数据
         if (!configName) {
-            alert('请输入配置名称');
+            showAlert('请输入配置名称', 'warning');
             return;
         }
         
         if (!apiKey) {
-            alert('请输入API Key');
+            showAlert('请输入API Key', 'warning');
             return;
         }
         
@@ -127,7 +127,7 @@ async function saveModelConfig() {
         // 保存配置
         await storageService.saveModelConfig(config);
         
-        alert('配置已保存');
+        showAlert('配置已保存', 'success');
         
         // 清空表单
         document.getElementById('configName').value = '';
@@ -144,7 +144,7 @@ async function saveModelConfig() {
         }
     } catch (error) {
         console.error('保存模型配置失败:', error);
-        alert('保存配置失败: ' + error.message);
+        showAlert('保存配置失败: ' + error.message, 'error');
     }
 }
 
@@ -157,7 +157,7 @@ async function testModelConnection() {
         const modelEndpoint = document.getElementById('modelEndpoint').value;
         
         if (!apiKey) {
-            alert('请填写API Key');
+            showAlert('请填写API Key', 'warning');
             return;
         }
         
@@ -183,9 +183,9 @@ async function testModelConnection() {
         testConnectionBtn.disabled = false;
         
         if (response.success) {
-            alert('连接成功');
+            showAlert('连接成功', 'success');
         } else {
-            alert('连接失败: ' + response.error);
+            showAlert('连接失败: ' + response.error, 'error');
         }
     } catch (error) {
         // 恢复按钮状态
@@ -194,7 +194,7 @@ async function testModelConnection() {
         testConnectionBtn.disabled = false;
         
         console.error('测试模型连接失败:', error);
-        alert('测试连接失败: ' + error.message);
+        showAlert('测试连接失败: ' + error.message, 'error');
     }
 }
 
@@ -248,7 +248,7 @@ async function editModelConfig(configName) {
     try {
         const config = await storageService.getModelConfig(configName);
         if (!config) {
-            alert('未找到配置');
+            showAlert('未找到配置', 'warning');
             return;
         }
         
@@ -260,7 +260,7 @@ async function editModelConfig(configName) {
         document.getElementById('modelEndpoint').value = config.modelEndpoint || '';
     } catch (error) {
         console.error('编辑模型配置失败:', error);
-        alert('编辑配置失败: ' + error.message);
+        showAlert('编辑配置失败: ' + error.message, 'error');
     }
 }
 
@@ -272,7 +272,7 @@ async function deleteModelConfig(configName) {
     
     try {
         await storageService.deleteModelConfig(configName);
-        alert('配置已删除');
+        showAlert('配置已删除', 'success');
         loadModelConfigs();
         
         // 如果当前在改写标签页，更新模型选择列表
@@ -281,7 +281,7 @@ async function deleteModelConfig(configName) {
         }
     } catch (error) {
         console.error('删除模型配置失败:', error);
-        alert('删除配置失败: ' + error.message);
+        showAlert('删除配置失败: ' + error.message, 'error');
     }
 }
 
@@ -308,7 +308,7 @@ async function deleteSelectedConfigs() {
     });
     
     if (selectedConfigs.length === 0) {
-        alert('请先选择要删除的配置');
+        showAlert('请先选择要删除的配置', 'warning');
         return;
     }
     
@@ -316,7 +316,7 @@ async function deleteSelectedConfigs() {
         try {
             // 批量删除配置
             await storageService.deleteModelConfigs(selectedConfigs);
-            alert('配置已删除');
+            showAlert('配置已删除', 'success');
             loadModelConfigs();
             
             // 如果当前在改写标签页，更新模型选择列表
@@ -325,7 +325,7 @@ async function deleteSelectedConfigs() {
             }
         } catch (error) {
             console.error('批量删除配置失败:', error);
-            alert('删除配置失败: ' + error.message);
+            showAlert('删除配置失败: ' + error.message, 'error');
         }
     }
 }
@@ -339,8 +339,9 @@ function getSelectedText() {
         }, function(response) {
             if (response && response.success) {
                 document.getElementById('originalText').value = response.data;
+                showAlert('已获取选中文本', 'success');
             } else {
-                alert('获取选中文本失败');
+                showAlert('获取选中文本失败', 'error');
             }
         });
     });
@@ -350,20 +351,21 @@ function getSelectedText() {
 function copyOriginalText() {
     const originalText = document.getElementById('originalText').value;
     if (!originalText) {
-        alert('没有可复制的文本');
+        showAlert('没有可复制的文本', 'warning');
         return;
     }
     
     navigator.clipboard.writeText(originalText).then(function() {
-        alert('原文已复制到剪贴板');
+        showAlert('原文已复制到剪贴板', 'success');
     }, function() {
-        alert('复制失败');
+        showAlert('复制失败', 'error');
     });
 }
 
 // 清空原文
 function clearOriginalText() {
     document.getElementById('originalText').value = '';
+    showAlert('已清空原文', 'success');
 }
 
 // 开始改写
@@ -376,19 +378,19 @@ async function startRewrite() {
         const configName = selectedOption.getAttribute('data-name');
         
         if (!originalText) {
-            alert('请输入要改写的文本');
+            showAlert('请输入要改写的文本', 'warning');
             return;
         }
         
         if (!configName) {
-            alert('请选择一个模型配置');
+            showAlert('请选择一个模型配置', 'warning');
             return;
         }
         
         // 获取模型配置
         const config = await storageService.getModelConfig(configName);
         if (!config) {
-            alert('未找到选中的模型配置');
+            showAlert('未找到选中的模型配置', 'warning');
             return;
         }
         
@@ -407,8 +409,9 @@ async function startRewrite() {
         
         if (response.success) {
             document.getElementById('rewriteResult').value = response.data;
+            showAlert('文本改写完成', 'success');
         } else {
-            alert('改写失败: ' + response.error);
+            showAlert('改写失败: ' + response.error, 'error');
         }
     } catch (error) {
         // 恢复按钮状态
@@ -417,7 +420,7 @@ async function startRewrite() {
         startRewriteBtn.disabled = false;
         
         console.error('文本改写失败:', error);
-        alert('改写失败: ' + error.message);
+        showAlert('改写失败: ' + error.message, 'error');
     }
 }
 
@@ -425,14 +428,14 @@ async function startRewrite() {
 function copyRewriteResult() {
     const rewriteResult = document.getElementById('rewriteResult').value;
     if (!rewriteResult) {
-        alert('没有可复制的文本');
+        showAlert('没有可复制的文本', 'warning');
         return;
     }
     
     navigator.clipboard.writeText(rewriteResult).then(function() {
-        alert('改写结果已复制到剪贴板');
+        showAlert('改写结果已复制到剪贴板', 'success');
     }, function() {
-        alert('复制失败');
+        showAlert('复制失败', 'error');
     });
 }
 
@@ -448,17 +451,17 @@ async function saveRewriteResult() {
         const configName = selectedOption.getAttribute('data-name');
         
         if (!rewriteName) {
-            alert('请输入改写工作名称');
+            showAlert('请输入改写工作名称', 'warning');
             return;
         }
         
         if (!originalText || !rewriteResult) {
-            alert('没有可保存的内容');
+            showAlert('没有可保存的内容', 'warning');
             return;
         }
         
         if (!configName) {
-            alert('请选择一个模型配置');
+            showAlert('请选择一个模型配置', 'warning');
             return;
         }
         
@@ -486,7 +489,7 @@ async function saveRewriteResult() {
         // 保存改写记录
         await storageService.saveRewriteRecord(record);
         
-        alert('改写结果已保存');
+        showAlert('改写结果已保存', 'success');
         
         // 清空名称输入框
         document.getElementById('rewriteName').value = '';
@@ -495,7 +498,7 @@ async function saveRewriteResult() {
         loadRewriteHistory();
     } catch (error) {
         console.error('保存改写结果失败:', error);
-        alert('保存改写结果失败: ' + error.message);
+        showAlert('保存改写结果失败: ' + error.message, 'error');
     }
 }
 
@@ -570,7 +573,7 @@ async function editRewriteRecord(recordName) {
     try {
         const record = await storageService.getRewriteRecord(recordName);
         if (!record) {
-            alert('未找到记录');
+            showAlert('未找到记录', 'warning');
             return;
         }
         
@@ -588,9 +591,11 @@ async function editRewriteRecord(recordName) {
                 break;
             }
         }
+        
+        showAlert('已加载记录到编辑器', 'success');
     } catch (error) {
         console.error('编辑改写记录失败:', error);
-        alert('编辑记录失败: ' + error.message);
+        showAlert('编辑记录失败: ' + error.message, 'error');
     }
 }
 
@@ -602,11 +607,11 @@ async function deleteRewriteRecord(recordName) {
     
     try {
         await storageService.deleteRewriteRecord(recordName);
-        alert('记录已删除');
+        showAlert('记录已删除', 'success');
         loadRewriteHistory();
     } catch (error) {
         console.error('删除改写记录失败:', error);
-        alert('删除记录失败: ' + error.message);
+        showAlert('删除记录失败: ' + error.message, 'error');
     }
 }
 
@@ -633,7 +638,7 @@ async function deleteSelectedRecords() {
     });
     
     if (selectedRecords.length === 0) {
-        alert('请先选择要删除的记录');
+        showAlert('请先选择要删除的记录', 'warning');
         return;
     }
     
@@ -641,11 +646,67 @@ async function deleteSelectedRecords() {
         try {
             // 批量删除记录
             await storageService.deleteRewriteRecords(selectedRecords);
-            alert('记录已删除');
+            showAlert('记录已删除', 'success');
             loadRewriteHistory();
         } catch (error) {
             console.error('批量删除记录失败:', error);
-            alert('删除记录失败: ' + error.message);
+            showAlert('删除记录失败: ' + error.message, 'error');
         }
     }
+}
+
+// 显示提示信息
+function showAlert(message, type) {
+    // 创建提示元素
+    const alertElement = document.createElement('div');
+    alertElement.className = `alert alert-${type}`;
+    alertElement.textContent = message;
+    
+    // 添加样式
+    alertElement.style.position = 'fixed';
+    alertElement.style.top = '20px';
+    alertElement.style.left = '50%';
+    alertElement.style.transform = 'translateX(-50%)';
+    alertElement.style.padding = '12px 20px';
+    alertElement.style.borderRadius = '4px';
+    alertElement.style.color = 'white';
+    alertElement.style.fontWeight = '500';
+    alertElement.style.zIndex = '10000';
+    alertElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    alertElement.style.opacity = '0';
+    alertElement.style.transition = 'opacity 0.3s ease';
+    
+    // 根据类型设置背景色
+    switch(type) {
+        case 'success':
+            alertElement.style.backgroundColor = '#28a745';
+            break;
+        case 'error':
+            alertElement.style.backgroundColor = '#dc3545';
+            break;
+        case 'warning':
+            alertElement.style.backgroundColor = '#ffc107';
+            alertElement.style.color = '#212529';
+            break;
+        default:
+            alertElement.style.backgroundColor = '#17a2b8';
+    }
+    
+    // 添加到页面
+    document.body.appendChild(alertElement);
+    
+    // 显示动画
+    setTimeout(() => {
+        alertElement.style.opacity = '1';
+    }, 10);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+        alertElement.style.opacity = '0';
+        setTimeout(() => {
+            if (alertElement.parentNode) {
+                alertElement.parentNode.removeChild(alertElement);
+            }
+        }, 300);
+    }, 3000);
 }

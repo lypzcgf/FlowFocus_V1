@@ -49,7 +49,7 @@ async function handleRewriteText(data, sendResponse) {
     sendResponse({ 
       success: false, 
       error: error.message 
-    });
+      });
   }
 }
 
@@ -72,8 +72,8 @@ async function handleTestModelConnection(data, sendResponse) {
   }
 }
 
-// 监听侧边栏面板显示事件
-if (chrome.sidePanel) {
+// 监听侧边栏面板显示事件（添加存在性检查）
+if (chrome.sidePanel && chrome.sidePanel.onPanelShown) {
   chrome.sidePanel.onPanelShown.addListener(() => {
     console.log('FlowFocus side panel shown');
   });

@@ -2,6 +2,8 @@
  * 后台服务
  * 负责处理大模型API调用和其他后台任务
  */
+import storageService from '../services/storageService.js';
+import modelService from '../services/modelService.js';
 
 // 监听来自内容脚本和侧边栏的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -29,20 +31,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  */
 async function handleRewriteText(data, sendResponse) {
   try {
-    // 这里将实现实际的AI模型调用逻辑
-    // 目前返回模拟数据用于测试
-    const mockResult = `改写后的文本: ${data.text}`;
+    // 获取模型配置
+    const config = await storageService.getModelConfig(data.model);
+    if (!config) {
+      sendResponse({ 
+        success: false, 
+        error: '未找到模型配置' 
+      });
+      return;
+    }
     
-    sendResponse({ 
-      success: true, 
-      data: mockResult 
-    });
+    // 调用模型服务进行文本改写
+    const response = await modelService.rewriteText(config, data.text, data.prompt);
+    sendResponse(response);
   } catch (error) {
     console.error('Rewrite text error:', error);
     sendResponse({ 
       success: false, 
       error: error.message 
-    });
+      });
   }
 }
 
@@ -53,13 +60,9 @@ async function handleRewriteText(data, sendResponse) {
  */
 async function handleTestModelConnection(data, sendResponse) {
   try {
-    // 这里将实现实际的模型连接测试逻辑
-    // 目前返回模拟数据用于测试
-    
-    sendResponse({ 
-      success: true, 
-      data: '连接成功' 
-    });
+    // 调用模型服务测试连接
+    const response = await modelService.testConnection(data);
+    sendResponse(response);
   } catch (error) {
     console.error('Test model connection error:', error);
     sendResponse({ 
@@ -67,6 +70,13 @@ async function handleTestModelConnection(data, sendResponse) {
       error: error.message 
     });
   }
+}
+
+// 监听侧边栏面板显示事件（添加存在性检查）
+if (chrome.sidePanel && chrome.sidePanel.onPanelShown) {
+  chrome.sidePanel.onPanelShown.addListener(() => {
+    console.log('FlowFocus side panel shown');
+  });
 }
 
 console.log('FlowFocus background service initialized');
