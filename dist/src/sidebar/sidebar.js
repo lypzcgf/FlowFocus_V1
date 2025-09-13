@@ -432,21 +432,105 @@ async function deleteSelectedConfigs() {
     }
 }
 
-// 获取选中的文本
-function getSelectedText() {
-    // 发送消息到内容脚本获取选中的文本
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, {
+// 获取选中的文本（增强版）
+async function getSelectedText() {
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        
+        // 获取文本
+        const selectedText = await getTextWithFallback(tab.id);
+        
+        if (selectedText && selectedText.trim()) {
+            document.getElementById('originalText').value = selectedText.trim();
+            
+            // 给用户一个视觉反馈
+            const getSelectedTextBtn = document.getElementById('getSelectedTextBtn');
+            const originalBtnText = getSelectedTextBtn.textContent;
+            getSelectedTextBtn.textContent = '✅ 已获取';
+            getSelectedTextBtn.style.backgroundColor = '#28a745';
+            
+            setTimeout(() => {
+                getSelectedTextBtn.textContent = originalBtnText;
+                getSelectedTextBtn.style.backgroundColor = '';
+            }, 2000);
+            
+            showAlert('已获取选中文本', 'success');
+        } else {
+            document.getElementById('originalText').value = '';
+            
+            // 给用户一个视觉反馈
+            const getSelectedTextBtn = document.getElementById('getSelectedTextBtn');
+            const originalBtnText = getSelectedTextBtn.textContent;
+            getSelectedTextBtn.textContent = '❌ 无选中文本';
+            getSelectedTextBtn.style.backgroundColor = '#dc3545';
+            
+            setTimeout(() => {
+                getSelectedTextBtn.textContent = originalBtnText;
+                getSelectedTextBtn.style.backgroundColor = '';
+            }, 2000);
+            
+            showAlert('未找到选中的文本，请先在网页中选择要处理的文本', 'warning');
+        }
+    } catch (error) {
+        console.error('获取选中文本失败:', error);
+        document.getElementById('originalText').value = '';
+        
+        // 给用户一个视觉反馈
+        const getSelectedTextBtn = document.getElementById('getSelectedTextBtn');
+        const originalBtnText = getSelectedTextBtn.textContent;
+        getSelectedTextBtn.textContent = '❌ 获取失败';
+        getSelectedTextBtn.style.backgroundColor = '#dc3545';
+        
+        setTimeout(() => {
+            getSelectedTextBtn.textContent = originalBtnText;
+            getSelectedTextBtn.style.backgroundColor = '';
+        }, 2000);
+        
+        showAlert('获取文本失败: ' + (error.message || '未知错误'), 'error');
+    }
+}
+
+// 获取文本的函数（带备选方案）
+async function getTextWithFallback(tabId) {
+    try {
+        // 首先尝试通过消息传递获取选中的文本
+        const response = await chrome.tabs.sendMessage(tabId, {
             action: 'getSelectedText'
-        }, function(response) {
-            if (response && response.success) {
-                document.getElementById('originalText').value = response.data;
-                showAlert('已获取选中文本', 'success');
-            } else {
-                showAlert('获取选中文本失败', 'error');
-            }
         });
-    });
+        
+        if (response && response.success) {
+            return response.data;
+        } else {
+            throw new Error(response ? response.error : '无法与页面通信');
+        }
+    } catch (error) {
+        console.warn('通过消息传递获取文本失败:', error);
+        
+        // 备选方案：直接执行脚本获取文本
+        try {
+            const results = await chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                func: () => {
+                    const selectedText = window.getSelection().toString();
+                    if (selectedText.trim()) {
+                        return selectedText;
+                    }
+                    
+                    // 如果没有选中文本，返回空字符串
+                    // 不自动获取页面内容，让用户明确选择文本
+                    return '';
+                }
+            });
+            
+            if (results && results[0] && results[0].result) {
+                return results[0].result;
+            }
+        } catch (scriptError) {
+            console.error('通过脚本注入获取文本失败:', scriptError);
+        }
+        
+        throw new Error('无法获取页面文本内容，请确保已选中文本并刷新页面重试');
+    }
 }
 
 // 复制原文
