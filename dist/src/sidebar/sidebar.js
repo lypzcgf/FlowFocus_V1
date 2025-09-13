@@ -1,0 +1,651 @@
+/**
+ * 侧边栏JavaScript逻辑
+ */
+import storageService from '../services/storageService.js';
+import modelService from '../services/modelService.js';
+import { generateUUID } from '../utils/utils.js';
+
+// 当前选中的标签页
+let currentTab = 'modelConfig';
+
+// 等待DOM加载完成
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化标签页
+    initTabs();
+    
+    // 初始化大模型配置标签页
+    initModelConfigTab();
+    
+    // 初始化改写功能标签页
+    initRewriteTab();
+});
+
+// 初始化标签页切换功能
+function initTabs() {
+    const modelConfigTab = document.getElementById('modelConfigTab');
+    const rewriteTab = document.getElementById('rewriteTab');
+    const modelConfigPanel = document.getElementById('modelConfigPanel');
+    const rewritePanel = document.getElementById('rewritePanel');
+    
+    modelConfigTab.addEventListener('click', function() {
+        currentTab = 'modelConfig';
+        modelConfigTab.classList.add('active');
+        rewriteTab.classList.remove('active');
+        modelConfigPanel.classList.add('active');
+        rewritePanel.classList.remove('active');
+    });
+    
+    rewriteTab.addEventListener('click', function() {
+        currentTab = 'rewrite';
+        rewriteTab.classList.add('active');
+        modelConfigTab.classList.remove('active');
+        rewritePanel.classList.add('active');
+        modelConfigPanel.classList.remove('active');
+    });
+}
+
+// 初始化大模型配置标签页
+function initModelConfigTab() {
+    // 获取元素
+    const saveConfigBtn = document.getElementById('saveConfigBtn');
+    const testConnectionBtn = document.getElementById('testConnectionBtn');
+    const selectAllConfigs = document.getElementById('selectAllConfigs');
+    const deleteSelectedConfigsBtn = document.getElementById('deleteSelectedConfigsBtn');
+    
+    // 绑定事件
+    saveConfigBtn.addEventListener('click', saveModelConfig);
+    testConnectionBtn.addEventListener('click', testModelConnection);
+    selectAllConfigs.addEventListener('change', toggleAllConfigs);
+    deleteSelectedConfigsBtn.addEventListener('click', deleteSelectedConfigs);
+    
+    // 加载已保存的配置
+    loadModelConfigs();
+}
+
+// 初始化改写功能标签页
+function initRewriteTab() {
+    // 获取元素
+    const getSelectedTextBtn = document.getElementById('getSelectedTextBtn');
+    const copyOriginalBtn = document.getElementById('copyOriginalBtn');
+    const clearOriginalBtn = document.getElementById('clearOriginalBtn');
+    const startRewriteBtn = document.getElementById('startRewriteBtn');
+    const copyResultBtn = document.getElementById('copyResultBtn');
+    const saveResultBtn = document.getElementById('saveResultBtn');
+    const selectAllRecords = document.getElementById('selectAllRecords');
+    const deleteSelectedRecordsBtn = document.getElementById('deleteSelectedRecordsBtn');
+    
+    // 绑定事件
+    getSelectedTextBtn.addEventListener('click', getSelectedText);
+    copyOriginalBtn.addEventListener('click', copyOriginalText);
+    clearOriginalBtn.addEventListener('click', clearOriginalText);
+    startRewriteBtn.addEventListener('click', startRewrite);
+    copyResultBtn.addEventListener('click', copyRewriteResult);
+    saveResultBtn.addEventListener('click', saveRewriteResult);
+    selectAllRecords.addEventListener('change', toggleAllRecords);
+    deleteSelectedRecordsBtn.addEventListener('click', deleteSelectedRecords);
+    
+    // 加载模型配置到下拉列表
+    loadModelConfigsToSelect();
+    
+    // 加载改写历史记录
+    loadRewriteHistory();
+}
+
+// 保存模型配置
+async function saveModelConfig() {
+    try {
+        // 获取表单数据
+        const configName = document.getElementById('configName').value;
+        const modelType = document.getElementById('modelType').value;
+        const apiKey = document.getElementById('apiKey').value;
+        const baseUrl = document.getElementById('baseUrl').value;
+        const modelEndpoint = document.getElementById('modelEndpoint').value;
+        
+        // 验证数据
+        if (!configName) {
+            alert('请输入配置名称');
+            return;
+        }
+        
+        if (!apiKey) {
+            alert('请输入API Key');
+            return;
+        }
+        
+        // 创建配置对象
+        const config = {
+            id: generateUUID(),
+            name: configName,
+            modelType: modelType,
+            apiKey: apiKey, // 在实际应用中应该加密存储
+            baseUrl: baseUrl,
+            modelEndpoint: modelEndpoint,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        // 保存配置
+        await storageService.saveModelConfig(config);
+        
+        alert('配置已保存');
+        
+        // 清空表单
+        document.getElementById('configName').value = '';
+        document.getElementById('apiKey').value = '';
+        document.getElementById('baseUrl').value = '';
+        document.getElementById('modelEndpoint').value = '';
+        
+        // 重新加载配置列表
+        loadModelConfigs();
+        
+        // 更新改写功能标签页的模型选择列表
+        if (currentTab === 'rewrite') {
+            loadModelConfigsToSelect();
+        }
+    } catch (error) {
+        console.error('保存模型配置失败:', error);
+        alert('保存配置失败: ' + error.message);
+    }
+}
+
+// 测试模型连接
+async function testModelConnection() {
+    try {
+        const modelType = document.getElementById('modelType').value;
+        const apiKey = document.getElementById('apiKey').value;
+        const baseUrl = document.getElementById('baseUrl').value;
+        const modelEndpoint = document.getElementById('modelEndpoint').value;
+        
+        if (!apiKey) {
+            alert('请填写API Key');
+            return;
+        }
+        
+        // 创建配置对象
+        const config = {
+            modelType: modelType,
+            apiKey: apiKey,
+            baseUrl: baseUrl,
+            modelEndpoint: modelEndpoint
+        };
+        
+        // 显示测试中状态
+        const testConnectionBtn = document.getElementById('testConnectionBtn');
+        const originalText = testConnectionBtn.textContent;
+        testConnectionBtn.textContent = '测试中...';
+        testConnectionBtn.disabled = true;
+        
+        // 测试连接
+        const response = await modelService.testConnection(config);
+        
+        // 恢复按钮状态
+        testConnectionBtn.textContent = originalText;
+        testConnectionBtn.disabled = false;
+        
+        if (response.success) {
+            alert('连接成功');
+        } else {
+            alert('连接失败: ' + response.error);
+        }
+    } catch (error) {
+        // 恢复按钮状态
+        const testConnectionBtn = document.getElementById('testConnectionBtn');
+        testConnectionBtn.textContent = '测试连接';
+        testConnectionBtn.disabled = false;
+        
+        console.error('测试模型连接失败:', error);
+        alert('测试连接失败: ' + error.message);
+    }
+}
+
+// 加载模型配置
+async function loadModelConfigs() {
+    try {
+        const configs = await storageService.loadModelConfigs();
+        const configsList = document.getElementById('configsList');
+        
+        if (!configs || configs.length === 0) {
+            configsList.innerHTML = '<div class="empty-message">暂无配置</div>';
+            return;
+        }
+        
+        // 渲染配置列表
+        configsList.innerHTML = configs.map(config => `
+            <div class="config-item" data-id="${config.id}">
+                <div class="config-info">
+                    <strong>${config.name}</strong>
+                    <span>${config.modelType}模型</span>
+                </div>
+                <div class="config-actions">
+                    <button class="edit-btn" data-name="${config.name}">编辑</button>
+                    <button class="delete-btn" data-name="${config.name}">删除</button>
+                </div>
+            </div>
+        `).join('');
+        
+        // 绑定编辑和删除按钮事件
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const configName = this.getAttribute('data-name');
+                editModelConfig(configName);
+            });
+        });
+        
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const configName = this.getAttribute('data-name');
+                deleteModelConfig(configName);
+            });
+        });
+    } catch (error) {
+        console.error('加载模型配置失败:', error);
+        document.getElementById('configsList').innerHTML = '<div class="error-message">加载配置失败</div>';
+    }
+}
+
+// 编辑模型配置
+async function editModelConfig(configName) {
+    try {
+        const config = await storageService.getModelConfig(configName);
+        if (!config) {
+            alert('未找到配置');
+            return;
+        }
+        
+        // 填充表单
+        document.getElementById('configName').value = config.name;
+        document.getElementById('modelType').value = config.modelType;
+        document.getElementById('apiKey').value = config.apiKey;
+        document.getElementById('baseUrl').value = config.baseUrl || '';
+        document.getElementById('modelEndpoint').value = config.modelEndpoint || '';
+    } catch (error) {
+        console.error('编辑模型配置失败:', error);
+        alert('编辑配置失败: ' + error.message);
+    }
+}
+
+// 删除模型配置
+async function deleteModelConfig(configName) {
+    if (!confirm(`确定要删除配置 "${configName}" 吗？`)) {
+        return;
+    }
+    
+    try {
+        await storageService.deleteModelConfig(configName);
+        alert('配置已删除');
+        loadModelConfigs();
+        
+        // 如果当前在改写标签页，更新模型选择列表
+        if (currentTab === 'rewrite') {
+            loadModelConfigsToSelect();
+        }
+    } catch (error) {
+        console.error('删除模型配置失败:', error);
+        alert('删除配置失败: ' + error.message);
+    }
+}
+
+// 切换所有配置选择状态
+function toggleAllConfigs() {
+    const checkboxes = document.querySelectorAll('#configsList input[type="checkbox"]');
+    const selectAll = document.getElementById('selectAllConfigs').checked;
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll;
+    });
+}
+
+// 删除选中的配置
+async function deleteSelectedConfigs() {
+    const configItems = document.querySelectorAll('.config-item');
+    const selectedConfigs = [];
+    
+    configItems.forEach(item => {
+        // 在当前实现中，我们没有复选框，所以这里简化处理
+        // 实际应用中应该检查复选框状态
+        const configName = item.querySelector('.delete-btn').getAttribute('data-name');
+        selectedConfigs.push(configName);
+    });
+    
+    if (selectedConfigs.length === 0) {
+        alert('请先选择要删除的配置');
+        return;
+    }
+    
+    if (confirm(`确定要删除选中的${selectedConfigs.length}个配置吗？`)) {
+        try {
+            // 批量删除配置
+            await storageService.deleteModelConfigs(selectedConfigs);
+            alert('配置已删除');
+            loadModelConfigs();
+            
+            // 如果当前在改写标签页，更新模型选择列表
+            if (currentTab === 'rewrite') {
+                loadModelConfigsToSelect();
+            }
+        } catch (error) {
+            console.error('批量删除配置失败:', error);
+            alert('删除配置失败: ' + error.message);
+        }
+    }
+}
+
+// 获取选中的文本
+function getSelectedText() {
+    // 发送消息到内容脚本获取选中的文本
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+            action: 'getSelectedText'
+        }, function(response) {
+            if (response && response.success) {
+                document.getElementById('originalText').value = response.data;
+            } else {
+                alert('获取选中文本失败');
+            }
+        });
+    });
+}
+
+// 复制原文
+function copyOriginalText() {
+    const originalText = document.getElementById('originalText').value;
+    if (!originalText) {
+        alert('没有可复制的文本');
+        return;
+    }
+    
+    navigator.clipboard.writeText(originalText).then(function() {
+        alert('原文已复制到剪贴板');
+    }, function() {
+        alert('复制失败');
+    });
+}
+
+// 清空原文
+function clearOriginalText() {
+    document.getElementById('originalText').value = '';
+}
+
+// 开始改写
+async function startRewrite() {
+    try {
+        const originalText = document.getElementById('originalText').value;
+        const rewritePrompt = document.getElementById('rewritePrompt').value;
+        const modelSelect = document.getElementById('modelSelect');
+        const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+        const configName = selectedOption.getAttribute('data-name');
+        
+        if (!originalText) {
+            alert('请输入要改写的文本');
+            return;
+        }
+        
+        if (!configName) {
+            alert('请选择一个模型配置');
+            return;
+        }
+        
+        // 获取模型配置
+        const config = await storageService.getModelConfig(configName);
+        if (!config) {
+            alert('未找到选中的模型配置');
+            return;
+        }
+        
+        // 显示处理中状态
+        const startRewriteBtn = document.getElementById('startRewriteBtn');
+        const originalTextContent = startRewriteBtn.textContent;
+        startRewriteBtn.textContent = '处理中...';
+        startRewriteBtn.disabled = true;
+        
+        // 调用模型服务进行文本改写
+        const response = await modelService.rewriteText(config, originalText, rewritePrompt);
+        
+        // 恢复按钮状态
+        startRewriteBtn.textContent = originalTextContent;
+        startRewriteBtn.disabled = false;
+        
+        if (response.success) {
+            document.getElementById('rewriteResult').value = response.data;
+        } else {
+            alert('改写失败: ' + response.error);
+        }
+    } catch (error) {
+        // 恢复按钮状态
+        const startRewriteBtn = document.getElementById('startRewriteBtn');
+        startRewriteBtn.textContent = '🔄 开始改写';
+        startRewriteBtn.disabled = false;
+        
+        console.error('文本改写失败:', error);
+        alert('改写失败: ' + error.message);
+    }
+}
+
+// 复制改写结果
+function copyRewriteResult() {
+    const rewriteResult = document.getElementById('rewriteResult').value;
+    if (!rewriteResult) {
+        alert('没有可复制的文本');
+        return;
+    }
+    
+    navigator.clipboard.writeText(rewriteResult).then(function() {
+        alert('改写结果已复制到剪贴板');
+    }, function() {
+        alert('复制失败');
+    });
+}
+
+// 保存改写结果
+async function saveRewriteResult() {
+    try {
+        const rewriteName = document.getElementById('rewriteName').value;
+        const originalText = document.getElementById('originalText').value;
+        const rewriteResult = document.getElementById('rewriteResult').value;
+        const rewritePrompt = document.getElementById('rewritePrompt').value;
+        const modelSelect = document.getElementById('modelSelect');
+        const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+        const configName = selectedOption.getAttribute('data-name');
+        
+        if (!rewriteName) {
+            alert('请输入改写工作名称');
+            return;
+        }
+        
+        if (!originalText || !rewriteResult) {
+            alert('没有可保存的内容');
+            return;
+        }
+        
+        if (!configName) {
+            alert('请选择一个模型配置');
+            return;
+        }
+        
+        // 获取当前标签页的URL和标题
+        const tabs = await new Promise(resolve => {
+            chrome.tabs.query({active: true, currentWindow: true}, resolve);
+        });
+        
+        const currentTab = tabs[0];
+        
+        // 创建改写记录对象
+        const record = {
+            id: generateUUID(),
+            name: rewriteName,
+            originalText: originalText,
+            rewritePrompt: rewritePrompt,
+            rewriteResult: rewriteResult,
+            modelConfigName: configName,
+            sourceUrl: currentTab.url || '',
+            sourceTitle: currentTab.title || '',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        // 保存改写记录
+        await storageService.saveRewriteRecord(record);
+        
+        alert('改写结果已保存');
+        
+        // 清空名称输入框
+        document.getElementById('rewriteName').value = '';
+        
+        // 重新加载历史记录
+        loadRewriteHistory();
+    } catch (error) {
+        console.error('保存改写结果失败:', error);
+        alert('保存改写结果失败: ' + error.message);
+    }
+}
+
+// 加载模型配置到下拉列表
+async function loadModelConfigsToSelect() {
+    try {
+        const configs = await storageService.loadModelConfigs();
+        const modelSelect = document.getElementById('modelSelect');
+        
+        if (!configs || configs.length === 0) {
+            modelSelect.innerHTML = '<option value="">请先添加模型配置</option>';
+            return;
+        }
+        
+        // 渲染配置选项
+        modelSelect.innerHTML = configs.map(config => `
+            <option value="${config.name}" data-name="${config.name}">${config.name} (${config.modelType})</option>
+        `).join('');
+    } catch (error) {
+        console.error('加载模型配置到下拉列表失败:', error);
+        document.getElementById('modelSelect').innerHTML = '<option value="">加载配置失败</option>';
+    }
+}
+
+// 加载改写历史记录
+async function loadRewriteHistory() {
+    try {
+        const records = await storageService.loadRewriteRecords();
+        const recordsList = document.getElementById('recordsList');
+        
+        if (!records || records.length === 0) {
+            recordsList.innerHTML = '<div class="empty-message">暂无记录</div>';
+            return;
+        }
+        
+        // 渲染记录列表
+        recordsList.innerHTML = records.map(record => `
+            <div class="record-item" data-id="${record.id}">
+                <div class="record-info">
+                    <strong>${record.name}</strong>
+                    <span>${record.sourceTitle || '无标题'}</span>
+                </div>
+                <div class="record-actions">
+                    <button class="edit-btn" data-name="${record.name}">编辑</button>
+                    <button class="delete-btn" data-name="${record.name}">删除</button>
+                </div>
+            </div>
+        `).join('');
+        
+        // 绑定编辑和删除按钮事件
+        document.querySelectorAll('.record-actions .edit-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const recordName = this.getAttribute('data-name');
+                editRewriteRecord(recordName);
+            });
+        });
+        
+        document.querySelectorAll('.record-actions .delete-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const recordName = this.getAttribute('data-name');
+                deleteRewriteRecord(recordName);
+            });
+        });
+    } catch (error) {
+        console.error('加载改写历史记录失败:', error);
+        document.getElementById('recordsList').innerHTML = '<div class="error-message">加载记录失败</div>';
+    }
+}
+
+// 编辑改写记录
+async function editRewriteRecord(recordName) {
+    try {
+        const record = await storageService.getRewriteRecord(recordName);
+        if (!record) {
+            alert('未找到记录');
+            return;
+        }
+        
+        // 填充表单
+        document.getElementById('rewriteName').value = record.name;
+        document.getElementById('originalText').value = record.originalText;
+        document.getElementById('rewritePrompt').value = record.rewritePrompt;
+        document.getElementById('rewriteResult').value = record.rewriteResult;
+        
+        // 选择对应的模型配置
+        const modelSelect = document.getElementById('modelSelect');
+        for (let i = 0; i < modelSelect.options.length; i++) {
+            if (modelSelect.options[i].getAttribute('data-name') === record.modelConfigName) {
+                modelSelect.selectedIndex = i;
+                break;
+            }
+        }
+    } catch (error) {
+        console.error('编辑改写记录失败:', error);
+        alert('编辑记录失败: ' + error.message);
+    }
+}
+
+// 删除改写记录
+async function deleteRewriteRecord(recordName) {
+    if (!confirm(`确定要删除记录 "${recordName}" 吗？`)) {
+        return;
+    }
+    
+    try {
+        await storageService.deleteRewriteRecord(recordName);
+        alert('记录已删除');
+        loadRewriteHistory();
+    } catch (error) {
+        console.error('删除改写记录失败:', error);
+        alert('删除记录失败: ' + error.message);
+    }
+}
+
+// 切换所有记录选择状态
+function toggleAllRecords() {
+    const checkboxes = document.querySelectorAll('#recordsList input[type="checkbox"]');
+    const selectAll = document.getElementById('selectAllRecords').checked;
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll;
+    });
+}
+
+// 删除选中的记录
+async function deleteSelectedRecords() {
+    const recordItems = document.querySelectorAll('.record-item');
+    const selectedRecords = [];
+    
+    recordItems.forEach(item => {
+        // 在当前实现中，我们没有复选框，所以这里简化处理
+        // 实际应用中应该检查复选框状态
+        const recordName = item.querySelector('.delete-btn').getAttribute('data-name');
+        selectedRecords.push(recordName);
+    });
+    
+    if (selectedRecords.length === 0) {
+        alert('请先选择要删除的记录');
+        return;
+    }
+    
+    if (confirm(`确定要删除选中的${selectedRecords.length}条记录吗？`)) {
+        try {
+            // 批量删除记录
+            await storageService.deleteRewriteRecords(selectedRecords);
+            alert('记录已删除');
+            loadRewriteHistory();
+        } catch (error) {
+            console.error('批量删除记录失败:', error);
+            alert('删除记录失败: ' + error.message);
+        }
+    }
+}

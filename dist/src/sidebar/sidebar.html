@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowFocus</title>
+    <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 标签页导航 -->
+        <div class="tab-navigation">
+            <button id="modelConfigTab" class="tab-button active">大模型配置</button>
+            <button id="rewriteTab" class="tab-button">改写功能</button>
+        </div>
+
+        <!-- 大模型配置标签页 -->
+        <div id="modelConfigPanel" class="tab-panel active">
+            <h2>大模型配置</h2>
+            
+            <div class="form-group">
+                <label for="configName">配置名称：</label>
+                <input type="text" id="configName" placeholder="请输入配置名称">
+            </div>
+            
+            <div class="form-group">
+                <label for="modelType">选择大模型：</label>
+                <select id="modelType">
+                    <option value="qwen">Qwen</option>
+                    <option value="deepseek">DeepSeek</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="apiKey">API Key：</label>
+                <input type="password" id="apiKey" placeholder="请输入API密钥">
+            </div>
+            
+            <div class="form-group">
+                <label for="baseUrl">Base URL：</label>
+                <input type="text" id="baseUrl" placeholder="请输入基础URL">
+            </div>
+            
+            <div class="form-group">
+                <label for="modelEndpoint">模型端点：</label>
+                <input type="text" id="modelEndpoint" placeholder="请输入模型端点">
+            </div>
+            
+            <button id="saveConfigBtn">保存配置</button>
+            <button id="testConnectionBtn">测试连接</button>
+            
+            <div class="history-configs">
+                <div class="history-header">
+                    <label><input type="checkbox" id="selectAllConfigs"> 全部</label>
+                    <button id="deleteSelectedConfigsBtn">删除</button>
+                </div>
+                <div id="configsList" class="configs-list">
+                    <!-- 配置列表将通过JavaScript动态生成 -->
+                    <div class="empty-message">暂无配置</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 改写功能标签页 -->
+        <div id="rewritePanel" class="tab-panel">
+            <h2>改写功能</h2>
+            
+            <div class="form-group">
+                <label for="rewriteName">改写工作名称：</label>
+                <input type="text" id="rewriteName" placeholder="请输入改写工作名称">
+            </div>
+            
+            <div class="form-group">
+                <label>网页原文：</label>
+                <div class="text-container">
+                    <textarea id="originalText" placeholder="网页原文将显示在这里"></textarea>
+                </div>
+                <div class="button-group">
+                    <button id="getSelectedTextBtn">获取选中文字</button>
+                    <button id="copyOriginalBtn">📋 复制原文</button>
+                    <button id="clearOriginalBtn">🗑️ 清空</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="modelSelect">大模型：</label>
+                <select id="modelSelect">
+                    <option value="">请先添加模型配置</option>
+                </select>
+                
+                <label>改写提示词：</label>
+                <div class="text-container">
+                    <textarea id="rewritePrompt" placeholder="请将以下文本改写得更加正式和专业..."></textarea>
+                </div>
+                <button id="startRewriteBtn">🔄 开始改写</button>
+            </div>
+            
+            <div class="form-group">
+                <label>改写结果：</label>
+                <div class="text-container">
+                    <textarea id="rewriteResult" placeholder="改写结果将显示在这里"></textarea>
+                </div>
+                <div class="button-group">
+                    <button id="copyResultBtn">📋 复制改写结果</button>
+                    <button id="saveResultBtn">💾 保存</button>
+                </div>
+            </div>
+            
+            <div class="history-records">
+                <div class="history-header">
+                    <label><input type="checkbox" id="selectAllRecords"> 全部</label>
+                    <button id="deleteSelectedRecordsBtn">删除</button>
+                </div>
+                <div id="recordsList" class="records-list">
+                    <!-- 改写记录列表将通过JavaScript动态生成 -->
+                    <div class="empty-message">暂无记录</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="sidebar.js"></script>
+</body>
+</html>

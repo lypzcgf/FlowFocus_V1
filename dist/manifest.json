@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "FlowFocus",
+  "version": "1.0.0",
+  "description": "帮助用户通过AI技术改写网页内容，提升工作效率的Chrome浏览器侧边栏插件",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "sidePanel",
+    "activeTab"
+  ],
+  "background": {
+    "service_worker": "src/background/background.js"
+  },
+  "side_panel": {
+    "default_path": "src/sidebar/sidebar.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/content.js"]
+    }
+  ],
+  "action": {
+    "default_title": "FlowFocus"
+  }
+}
