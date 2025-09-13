@@ -143,6 +143,7 @@ async function saveModelConfig() {
         const apiKey = document.getElementById('apiKey').value;
         const baseUrl = document.getElementById('baseUrl').value;
         const modelEndpoint = document.getElementById('modelEndpoint').value;
+        const configId = document.getElementById('configId').value; // 获取配置ID
         
         // 验证数据
         if (!configName) {
@@ -155,26 +156,46 @@ async function saveModelConfig() {
             return;
         }
         
-        // 检查是否存在同名配置
+        // 检查是否存在同名配置（排除正在编辑的配置）
         const existingConfig = await storageService.getModelConfig(configName);
-        if (existingConfig) {
-            // 如果存在同名配置，询问用户是否覆盖
+        if (existingConfig && existingConfig.id !== configId) {
+            // 如果存在同名配置且不是当前编辑的配置，询问用户是否覆盖
             if (!confirm(`已存在名为 "${configName}" 的配置，是否要覆盖？`)) {
                 return; // 用户选择不覆盖，放弃保存操作
             }
         }
         
-        // 创建配置对象
-        const config = {
-            id: generateUUID(),
-            name: configName,
-            modelType: modelType,
-            apiKey: apiKey, // 在实际应用中应该加密存储
-            baseUrl: baseUrl,
-            modelEndpoint: modelEndpoint,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
+        let config;
+        if (configId) {
+            // 如果存在configId，说明是编辑模式，获取现有配置
+            // 使用 loadModelConfigs 获取所有配置，然后通过 find 根据 ID 查找配置
+            const configs = await storageService.loadModelConfigs();
+            const foundConfig = configs.find(c => c.id === configId);
+            if (!foundConfig) {
+                showAlert('未找到要编辑的配置', 'error');
+                return;
+            }
+            // 更新配置信息
+            foundConfig.name = configName;
+            foundConfig.modelType = modelType;
+            foundConfig.apiKey = apiKey;
+            foundConfig.baseUrl = baseUrl;
+            foundConfig.modelEndpoint = modelEndpoint;
+            foundConfig.updatedAt = new Date().toISOString();
+            config = foundConfig;
+        } else {
+            // 创建新配置对象
+            config = {
+                id: generateUUID(),
+                name: configName,
+                modelType: modelType,
+                apiKey: apiKey, // 在实际应用中应该加密存储
+                baseUrl: baseUrl,
+                modelEndpoint: modelEndpoint,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+        }
         
         // 保存配置
         await storageService.saveModelConfig(config);
@@ -186,6 +207,9 @@ async function saveModelConfig() {
         // document.getElementById('apiKey').value = '';
         // document.getElementById('baseUrl').value = '';
         // document.getElementById('modelEndpoint').value = '';
+        
+        // 清空configId字段
+        document.getElementById('configId').value = '';
         
         // 重新加载配置列表
         loadModelConfigs();
@@ -311,6 +335,7 @@ async function editModelConfig(configName) {
         document.getElementById('apiKey').value = config.apiKey;
         document.getElementById('baseUrl').value = config.baseUrl || '';
         document.getElementById('modelEndpoint').value = config.modelEndpoint || '';
+        document.getElementById('configId').value = config.id; // 保存配置ID到隐藏字段
     } catch (error) {
         console.error('编辑模型配置失败:', error);
         showAlert('编辑配置失败: ' + error.message, 'error');

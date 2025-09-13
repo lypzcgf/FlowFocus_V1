@@ -96,8 +96,15 @@ class StorageService {
       // 获取现有的配置列表
       const configs = await this.loadModelConfigs();
       
-      // 检查是否已存在同名配置
-      const existingIndex = configs.findIndex(c => c.name === config.name);
+      let existingIndex = -1;
+      
+      // 如果配置包含ID，优先通过ID查找（编辑模式）
+      if (config.id) {
+        existingIndex = configs.findIndex(c => c.id === config.id);
+      } else {
+        // 如果没有ID，通过名称查找（新增模式或兼容旧数据）
+        existingIndex = configs.findIndex(c => c.name === config.name);
+      }
       
       if (existingIndex >= 0) {
         // 更新现有配置
