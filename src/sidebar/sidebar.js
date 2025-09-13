@@ -58,6 +58,8 @@ function initTabs() {
         modelConfigTab.classList.remove('active');
         rewritePanel.classList.add('active');
         modelConfigPanel.classList.remove('active');
+        // 切换到改写功能标签页时重新加载模型配置列表
+        loadModelConfigsToSelect();
     });
 }
 
@@ -657,6 +659,18 @@ async function saveRewriteResult() {
             return;
         }
         
+        // 检查是否存在同名记录
+        const existingRecord = await storageService.getRewriteRecord(rewriteName);
+        if (existingRecord) {
+            // 弹出确认对话框
+            const shouldOverwrite = confirm(`已存在名为 "${rewriteName}" 的改写工作记录，是否要覆盖原来的工作成果？`);
+            if (!shouldOverwrite) {
+                // 用户选择不覆盖，放弃保存操作
+                showAlert('已取消保存操作', 'info');
+                return;
+            }
+        }
+        
         // 获取当前标签页的URL和标题
         const tabs = await new Promise(resolve => {
             chrome.tabs.query({active: true, currentWindow: true}, resolve);
@@ -666,7 +680,7 @@ async function saveRewriteResult() {
         
         // 创建改写记录对象
         const record = {
-            id: generateUUID(),
+            id: existingRecord ? existingRecord.id : generateUUID(), // 如果是覆盖，保持原有ID
             name: rewriteName,
             originalText: originalText,
             rewritePrompt: rewritePrompt,
@@ -674,17 +688,18 @@ async function saveRewriteResult() {
             modelConfigName: configName,
             sourceUrl: currentTab.url || '',
             sourceTitle: currentTab.title || '',
-            createdAt: new Date().toISOString(),
+            createdAt: existingRecord ? existingRecord.createdAt : new Date().toISOString(), // 如果是覆盖，保持原创建时间
             updatedAt: new Date().toISOString()
         };
         
         // 保存改写记录
         await storageService.saveRewriteRecord(record);
         
-        showAlert('改写结果已保存', 'success');
-        
-        // 清空名称输入框
-        document.getElementById('rewriteName').value = '';
+        if (existingRecord) {
+            showAlert('改写结果已覆盖保存', 'success');
+        } else {
+            showAlert('改写结果已保存', 'success');
+        }
         
         // 重新加载历史记录
         loadRewriteHistory();
