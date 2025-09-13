@@ -113,6 +113,8 @@ function initRewriteTab() {
 // 填充大模型默认值
 function fillModelDefaults() {
     const modelType = document.getElementById('modelType').value;
+    const configNameInput = document.getElementById('configName');
+    const apiKeyInput = document.getElementById('apiKey');
     const baseUrlInput = document.getElementById('baseUrl');
     const modelEndpointInput = document.getElementById('modelEndpoint');
     
@@ -121,6 +123,8 @@ function fillModelDefaults() {
     
     if (defaults) {
         // 清空所有相关输入框
+        configNameInput.value = '';
+        apiKeyInput.value = '';
         baseUrlInput.value = '';
         modelEndpointInput.value = '';
         
