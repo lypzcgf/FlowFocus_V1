@@ -307,13 +307,14 @@ async function loadModelConfigs() {
             return;
         }
         
-        // 渲染配置列表
+        // 渲染配置列表 - 只显示配置名称，复选框和名称在同一行
         configsList.innerHTML = configs.map(config => `
             <div class="config-item" data-id="${config.id}">
                 <div class="config-info">
-                    <input type="checkbox" class="config-checkbox" data-name="${config.name}">
-                    <strong>${config.name}</strong>
-                    <span>${config.modelType}模型</span>
+                    <label class="checkbox-label">
+                        <input type="checkbox" class="config-checkbox" data-name="${config.name}">
+                        <strong>${config.name}</strong>
+                    </label>
                 </div>
                 <div class="config-actions">
                     <button class="edit-btn" data-name="${config.name}">编辑</button>
@@ -397,12 +398,12 @@ function toggleAllConfigs() {
 
 // 删除选中的配置
 async function deleteSelectedConfigs() {
-    const configItems = document.querySelectorAll('.config-item');
+    // 使用更新的方式获取选中配置
+    const checkboxes = document.querySelectorAll('#configsList .config-checkbox');
     const selectedConfigs = [];
     
-    configItems.forEach(item => {
-        const checkbox = item.querySelector('.config-checkbox');
-        if (checkbox && checkbox.checked) {
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
             const configName = checkbox.getAttribute('data-name');
             selectedConfigs.push(configName);
         }
