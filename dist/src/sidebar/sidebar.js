@@ -633,13 +633,12 @@ async function loadRewriteHistory() {
             return;
         }
         
-        // 渲染记录列表
+        // 渲染记录列表 - 只显示改写工作名称，不显示详细内容
         recordsList.innerHTML = records.map(record => `
             <div class="record-item" data-id="${record.id}">
                 <div class="record-info">
                     <input type="checkbox" class="record-checkbox" data-name="${record.name}">
                     <strong>${record.name}</strong>
-                    <span>${record.sourceTitle || '无标题'}</span>
                 </div>
                 <div class="record-actions">
                     <button class="edit-btn" data-name="${record.name}">编辑</button>
