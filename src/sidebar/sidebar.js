@@ -637,6 +637,7 @@ async function loadRewriteHistory() {
         recordsList.innerHTML = records.map(record => `
             <div class="record-item" data-id="${record.id}">
                 <div class="record-info">
+                    <input type="checkbox" class="record-checkbox" data-name="${record.name}">
                     <strong>${record.name}</strong>
                     <span>${record.sourceTitle || '无标题'}</span>
                 </div>
@@ -730,10 +731,11 @@ async function deleteSelectedRecords() {
     const selectedRecords = [];
     
     recordItems.forEach(item => {
-        // 在当前实现中，我们没有复选框，所以这里简化处理
-        // 实际应用中应该检查复选框状态
-        const recordName = item.querySelector('.delete-btn').getAttribute('data-name');
-        selectedRecords.push(recordName);
+        const checkbox = item.querySelector('.record-checkbox');
+        if (checkbox && checkbox.checked) {
+            const recordName = checkbox.getAttribute('data-name');
+            selectedRecords.push(recordName);
+        }
     });
     
     if (selectedRecords.length === 0) {
