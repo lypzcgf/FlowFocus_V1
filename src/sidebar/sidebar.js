@@ -8,6 +8,18 @@ import { generateUUID } from '../utils/utils.js';
 // 当前选中的标签页
 let currentTab = 'modelConfig';
 
+// 大模型默认配置
+const MODEL_DEFAULTS = {
+    'qwen': {
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        modelEndpoint: 'qwen-turbo'
+    },
+    'deepseek': {
+        baseUrl: 'https://api.deepseek.com/v1',
+        modelEndpoint: 'deepseek-chat'
+    }
+};
+
 // 等待DOM加载完成
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化标签页
@@ -18,6 +30,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化改写功能标签页
     initRewriteTab();
+    
+    // 插件加载时填充默认值
+    fillModelDefaults();
 });
 
 // 初始化标签页切换功能
@@ -33,6 +48,8 @@ function initTabs() {
         rewriteTab.classList.remove('active');
         modelConfigPanel.classList.add('active');
         rewritePanel.classList.remove('active');
+        // 标签页切换到大模型配置页面时填充默认值
+        fillModelDefaults();
     });
     
     rewriteTab.addEventListener('click', function() {
@@ -47,12 +64,14 @@ function initTabs() {
 // 初始化大模型配置标签页
 function initModelConfigTab() {
     // 获取元素
+    const modelType = document.getElementById('modelType');
     const saveConfigBtn = document.getElementById('saveConfigBtn');
     const testConnectionBtn = document.getElementById('testConnectionBtn');
     const selectAllConfigs = document.getElementById('selectAllConfigs');
     const deleteSelectedConfigsBtn = document.getElementById('deleteSelectedConfigsBtn');
     
     // 绑定事件
+    modelType.addEventListener('change', fillModelDefaults); // 大模型下拉框选择变化时填充默认值
     saveConfigBtn.addEventListener('click', saveModelConfig);
     testConnectionBtn.addEventListener('click', testModelConnection);
     selectAllConfigs.addEventListener('change', toggleAllConfigs);
@@ -89,6 +108,26 @@ function initRewriteTab() {
     
     // 加载改写历史记录
     loadRewriteHistory();
+}
+
+// 填充大模型默认值
+function fillModelDefaults() {
+    const modelType = document.getElementById('modelType').value;
+    const baseUrlInput = document.getElementById('baseUrl');
+    const modelEndpointInput = document.getElementById('modelEndpoint');
+    
+    // 获取当前选择的模型对应的默认值
+    const defaults = MODEL_DEFAULTS[modelType];
+    
+    if (defaults) {
+        // 清空所有相关输入框
+        baseUrlInput.value = '';
+        modelEndpointInput.value = '';
+        
+        // 填充默认值
+        baseUrlInput.value = defaults.baseUrl;
+        modelEndpointInput.value = defaults.modelEndpoint;
+    }
 }
 
 // 保存模型配置
