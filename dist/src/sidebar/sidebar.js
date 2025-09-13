@@ -155,6 +155,15 @@ async function saveModelConfig() {
             return;
         }
         
+        // 检查是否存在同名配置
+        const existingConfig = await storageService.getModelConfig(configName);
+        if (existingConfig) {
+            // 如果存在同名配置，询问用户是否覆盖
+            if (!confirm(`已存在名为 "${configName}" 的配置，是否要覆盖？`)) {
+                return; // 用户选择不覆盖，放弃保存操作
+            }
+        }
+        
         // 创建配置对象
         const config = {
             id: generateUUID(),
