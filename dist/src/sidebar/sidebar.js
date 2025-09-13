@@ -168,11 +168,11 @@ async function saveModelConfig() {
         
         showAlert('配置已保存', 'success');
         
-        // 清空表单
-        document.getElementById('configName').value = '';
-        document.getElementById('apiKey').value = '';
-        document.getElementById('baseUrl').value = '';
-        document.getElementById('modelEndpoint').value = '';
+        // 不再清空表单，保留用户输入的内容以便后续操作
+        // document.getElementById('configName').value = '';
+        // document.getElementById('apiKey').value = '';
+        // document.getElementById('baseUrl').value = '';
+        // document.getElementById('modelEndpoint').value = '';
         
         // 重新加载配置列表
         loadModelConfigs();
