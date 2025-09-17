@@ -194,8 +194,15 @@ class StorageService {
       // 获取现有的改写记录列表
       const records = await this.loadRewriteRecords();
       
-      // 检查是否已存在同名记录
-      const existingIndex = records.findIndex(r => r.name === record.name);
+      let existingIndex = -1;
+      
+      // 如果记录包含ID，优先通过ID查找（编辑模式）
+      if (record.id) {
+        existingIndex = records.findIndex(r => r.id === record.id);
+      } else {
+        // 如果没有ID，通过名称查找（新增模式或兼容旧数据）
+        existingIndex = records.findIndex(r => r.name === record.name);
+      }
       
       if (existingIndex >= 0) {
         // 更新现有记录

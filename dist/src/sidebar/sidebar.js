@@ -643,6 +643,7 @@ async function saveRewriteResult() {
         const modelSelect = document.getElementById('modelSelect');
         const selectedOption = modelSelect.options[modelSelect.selectedIndex];
         const configName = selectedOption.getAttribute('data-name');
+        const recordId = document.getElementById('recordId').value; // 获取记录ID
         
         if (!rewriteName) {
             showAlert('请输入改写工作名称', 'warning');
@@ -659,47 +660,76 @@ async function saveRewriteResult() {
             return;
         }
         
-        // 检查是否存在同名记录
-        const existingRecord = await storageService.getRewriteRecord(rewriteName);
-        if (existingRecord) {
-            // 弹出确认对话框
-            const shouldOverwrite = confirm(`已存在名为 "${rewriteName}" 的改写工作记录，是否要覆盖原来的工作成果？`);
-            if (!shouldOverwrite) {
-                // 用户选择不覆盖，放弃保存操作
-                showAlert('已取消保存操作', 'info');
+        let record;
+        if (recordId) {
+            // 编辑模式：通过ID查找并更新记录
+            const records = await storageService.loadRewriteRecords();
+            const foundRecord = records.find(r => r.id === recordId);
+            if (!foundRecord) {
+                showAlert('未找到要编辑的记录', 'error');
                 return;
             }
+            // 更新记录信息
+            foundRecord.name = rewriteName;
+            foundRecord.originalText = originalText;
+            foundRecord.rewritePrompt = rewritePrompt;
+            foundRecord.rewriteResult = rewriteResult;
+            foundRecord.modelConfigName = configName;
+            foundRecord.updatedAt = new Date().toISOString();
+            record = foundRecord;
+        } else {
+            // 非编辑模式：检查是否存在同名记录
+            const existingRecord = await storageService.getRewriteRecord(rewriteName);
+            if (existingRecord) {
+                // 弹出确认对话框
+                const shouldOverwrite = confirm(`已存在名为 "${rewriteName}" 的改写工作记录，是否要覆盖原来的工作成果？`);
+                if (!shouldOverwrite) {
+                    // 用户选择不覆盖，放弃保存操作
+                    showAlert('已取消保存操作', 'info');
+                    return;
+                }
+                // 用户选择覆盖，更新现有记录
+                existingRecord.originalText = originalText;
+                existingRecord.rewritePrompt = rewritePrompt;
+                existingRecord.rewriteResult = rewriteResult;
+                existingRecord.modelConfigName = configName;
+                existingRecord.updatedAt = new Date().toISOString();
+                record = existingRecord;
+            } else {
+                // 获取当前标签页的URL和标题
+                const tabs = await new Promise(resolve => {
+                    chrome.tabs.query({active: true, currentWindow: true}, resolve);
+                });
+                
+                const currentTab = tabs[0];
+                
+                // 创建新记录对象
+                record = {
+                    id: generateUUID(),
+                    name: rewriteName,
+                    originalText: originalText,
+                    rewritePrompt: rewritePrompt,
+                    rewriteResult: rewriteResult,
+                    modelConfigName: configName,
+                    sourceUrl: currentTab.url || '',
+                    sourceTitle: currentTab.title || '',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+            }
         }
-        
-        // 获取当前标签页的URL和标题
-        const tabs = await new Promise(resolve => {
-            chrome.tabs.query({active: true, currentWindow: true}, resolve);
-        });
-        
-        const currentTab = tabs[0];
-        
-        // 创建改写记录对象
-        const record = {
-            id: existingRecord ? existingRecord.id : generateUUID(), // 如果是覆盖，保持原有ID
-            name: rewriteName,
-            originalText: originalText,
-            rewritePrompt: rewritePrompt,
-            rewriteResult: rewriteResult,
-            modelConfigName: configName,
-            sourceUrl: currentTab.url || '',
-            sourceTitle: currentTab.title || '',
-            createdAt: existingRecord ? existingRecord.createdAt : new Date().toISOString(), // 如果是覆盖，保持原创建时间
-            updatedAt: new Date().toISOString()
-        };
         
         // 保存改写记录
         await storageService.saveRewriteRecord(record);
         
-        if (existingRecord) {
-            showAlert('改写结果已覆盖保存', 'success');
+        if (recordId) {
+            showAlert('改写记录已更新', 'success');
         } else {
             showAlert('改写结果已保存', 'success');
         }
+        
+        // 保存成功后，清空recordId字段退出编辑模式
+        document.getElementById('recordId').value = '';
         
         // 重新加载历史记录
         loadRewriteHistory();
@@ -791,6 +821,7 @@ async function editRewriteRecord(recordName) {
         document.getElementById('originalText').value = record.originalText;
         document.getElementById('rewritePrompt').value = record.rewritePrompt;
         document.getElementById('rewriteResult').value = record.rewriteResult;
+        document.getElementById('recordId').value = record.id; // 设置记录ID，进入编辑模式
         
         // 选择对应的模型配置
         const modelSelect = document.getElementById('modelSelect');
