@@ -110,12 +110,12 @@
 #### 4.2.1.2 大模型配置标签页
 
 **功能说明**：
-- 支持四种主流大模型：Qwen、DeepSeek、Volces和Kimi
+- 支持5种主流大模型：Qwen、DeepSeek、Volces、hunyuan和Kimi
 - 提供完整的配置管理功能：增加、删除、编辑、测试连接
 
 **配置项说明**：
 1. **配置名称**：唯一标识，不可重名
-2. **选择大模型**：支持Qwen、DeepSeek、Volces和Kimi 4种选择
+2. **选择大模型**：支持Qwen、DeepSeek、Volces、hunyuan和Kimi 5种选择
 3. **API Key**：对应平台的API密钥
 4. **Base URL**：API调用地址，提供默认值
    - Qwen: 
@@ -130,6 +130,9 @@
    - Kimi: 
       baseurl:`https://api.moonshot.cn/v1`
       model：`moonshot-v1-8k`
+   - hunyuan: 
+      baseurl:`https://api.hunyuan.cloud.tencent.com/v1`
+      model：`hunyuan-turbos-latest`
 5. **模型端点**：具体使用的模型名称
 6. **操作功能**：
    - 保存配置：支持新增和覆盖
@@ -144,7 +147,7 @@
 ├──────────────────────────────────────────────────────┤
 │ 配置名称：[输入框]                                    │
 ├──────────────────────────────────────────────────────┤
-│ 选择大模型: [Qwen|DeepSeek|Volces|Kimi] ▼             │
+│ 选择大模型: [Qwen|DeepSeek|Volces|hunyuan|Kimi] ▼     │
 ├──────────────────────────────────────────────────────┤
 │ API Key: [密码输入框]                                │
 │ Base URL: [URL输入框]                                │
@@ -278,7 +281,7 @@
 
 ## v2.0 (当前版本)
 - ✅ 多维表格配置管理（飞书、钉钉、企业微信）
-- ✅ 大模型配置管理（Qwen、DeepSeek）
+- ✅ 大模型配置管理（Qwen、DeepSeek、Volces、hunyuan、Kimi）
 - ✅ 网页文本改写功能
 - ✅ 连接测试功能
 - ✅ 错误处理和调试信息
@@ -291,7 +294,7 @@
 
 ## 7.1 安装和配置
 1. 在Chrome浏览器中加载插件
-2. 配置至少一个大模型（推荐Qwen或DeepSeek）
+2. 配置至少一个大模型（推荐Qwen、DeepSeek、Volces、hunyuan、Kimi）
 3. 测试大模型连接确保配置正确
 4. 配置至少一个多维表格（飞书、钉钉、企业微信）
 5. 测试多维表格连接确保配置正确
