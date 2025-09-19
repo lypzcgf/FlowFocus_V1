@@ -244,8 +244,4 @@ class BaseAdapter {
 }
 
 // 导出基础适配器类
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = BaseAdapter;
-} else {
-  window.BaseAdapter = BaseAdapter;
-}
+export default BaseAdapter;

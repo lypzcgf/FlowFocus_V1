@@ -181,6 +181,47 @@
 
 
     </div>
+
+    <!-- 同步对话框 -->
+    <div id="syncDialog" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>多维表格配置信息同步设置</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="sync-info">
+                    <div class="info-item">
+                        <label>选中的同步记录数:</label>
+                        <span id="selectedRecordsCount">共 1 条</span>
+                    </div>
+                    <div class="info-item">
+                        <label>选中的记录配置名称:</label>
+                        <span id="selectedConfigNames">[当前选择的多维表格配置名称]</span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="targetConfigSelect">配置同步目的链接:</label>
+                    <select id="targetConfigSelect">
+                        <option value="">请选择同步目的链接</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="targetTableSelect">配置同步目的表格:</label>
+                    <select id="targetTableSelect">
+                        <option value="">请先选择同步目的链接</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelSyncBtn" class="btn-secondary">取消</button>
+                <button id="confirmSyncBtn" class="btn-primary">确定</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 加载JavaScript文件 -->
     <script type="module" src="sidebar.js"></script>
 </body>

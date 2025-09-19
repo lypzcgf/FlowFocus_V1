@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞书适配器错误处理测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .config {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .test-section {
+            margin: 15px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .warning {
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>飞书适配器错误处理测试</h1>
+        
+        <div class="config">
+            <h3>当前配置</h3>
+            <p><strong>App ID:</strong> cli_a83161fe68be1013</p>
+            <p><strong>App Secret:</strong> gzqMVM6UZJhOzRHwGyXmChjUQamffTmo</p>
+            <p><strong>Table Token:</strong> DROzbmJw8aDik9sExJtcq98anjh</p>
+        </div>
+
+        <div class="test-section">
+            <h3>测试选项</h3>
+            <button onclick="testConnection()">测试连接</button>
+            <button onclick="getTables()">获取表格列表</button>
+            <button onclick="testInvalidConfig()">测试错误配置</button>
+        </div>
+
+        <div class="test-section">
+            <h3>测试日志</h3>
+            <div id="log" class="log">点击按钮开始测试...</div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟飞书适配器的核心方法
+        class MockFeishuAdapter {
+            constructor(config) {
+                this.appId = config.appId;
+                this.appSecret = config.appSecret;
+                this.tableToken = config.tableToken;
+                this.baseUrl = 'https://open.feishu.cn/open-apis/bitable/v1';
+                this.retryCount = 3;
+                this.retryDelay = 1000;
+            }
+
+            async makeRequest(url, options = {}) {
+                const requestOptions = {
+                    method: options.method || 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                };
+
+                for (let attempt = 1; attempt <= this.retryCount; attempt++) {
+                    try {
+                        const response = await fetch(url, requestOptions);
+                        
+                        // 改进的错误处理逻辑
+                        if (!response.ok) {
+                            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                            
+                            try {
+                                const errorData = await response.json();
+                                if (errorData.code) {
+                                    errorMessage = `飞书API错误 (${errorData.code}): ${errorData.msg}`;
+                                } else if (errorData.error) {
+                                    errorMessage = `飞书API错误: ${errorData.error}`;
+                                }
+                            } catch (parseError) {
+                                try {
+                                    const text = await response.text();
+                                    if (text) {
+                                        errorMessage += ` - 响应内容: ${text.substring(0, 200)}`;
+                                    }
+                                } catch (textError) {
+                                    // 忽略文本解析错误
+                                }
+                            }
+                            
+                            throw new Error(errorMessage);
+                        }
+                        
+                        return await response.json();
+                        
+                    } catch (error) {
+                        log(`尝试 ${attempt}/${this.retryCount} 失败: ${error.message}`, 'error');
+                        
+                        if (attempt < this.retryCount) {
+                            await this.delay(this.retryDelay * attempt);
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+            }
+
+            async getAccessToken() {
+                const url = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
+                const response = await this.makeRequest(url, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        app_id: this.appId,
+                        app_secret: this.appSecret
+                    })
+                });
+                
+                if (response.code === 0) {
+                    return response.tenant_access_token;
+                } else {
+                    throw new Error(`获取访问令牌失败: ${response.msg} (${response.code})`);
+                }
+            }
+
+            async getTables() {
+                const token = await this.getAccessToken();
+                const url = `${this.baseUrl}/apps/${this.tableToken}/tables`;
+                
+                const response = await this.makeRequest(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                return response;
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // 日志函数
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logEntry.className = type;
+            
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 测试函数
+        async function testConnection() {
+            log('开始测试连接...', 'info');
+            
+            try {
+                const adapter = new MockFeishuAdapter({
+                    appId: 'cli_a83161fe68be1013',
+                    appSecret: 'gzqMVM6UZJhOzRHwGyXmChjUQamffTmo',
+                    tableToken: 'DROzbmJw8aDik9sExJtcq98anjh'
+                });
+
+                log('正在获取访问令牌...', 'info');
+                const token = await adapter.getAccessToken();
+                log(`✓ 成功获取访问令牌: ${token.substring(0, 20)}...`, 'success');
+
+                log('连接测试完成！', 'success');
+                
+            } catch (error) {
+                log(`连接测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function getTables() {
+            log('开始获取表格列表...', 'info');
+            
+            try {
+                const adapter = new MockFeishuAdapter({
+                    appId: 'cli_a83161fe68be1013',
+                    appSecret: 'gzqMVM6UZJhOzRHwGyXmChjUQamffTmo',
+                    tableToken: 'DROzbmJw8aDik9sExJtcq98anjh'
+                });
+
+                log('正在获取表格信息...', 'info');
+                const tables = await adapter.getTables();
+                log(`✓ 成功获取表格列表: ${JSON.stringify(tables, null, 2)}`, 'success');
+                
+            } catch (error) {
+                log(`获取表格列表失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testInvalidConfig() {
+            log('开始测试错误配置...', 'info');
+            
+            try {
+                const adapter = new MockFeishuAdapter({
+                    appId: 'invalid_app_id',
+                    appSecret: 'invalid_app_secret',
+                    tableToken: 'invalid_table_token'
+                });
+
+                log('使用错误配置获取访问令牌...', 'info');
+                await adapter.getAccessToken();
+                
+            } catch (error) {
+                log(`错误配置测试结果: ${error.message}`, 'warning');
+            }
+        }
+    </script>
+</body>
+</html>

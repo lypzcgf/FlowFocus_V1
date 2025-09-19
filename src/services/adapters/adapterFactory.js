@@ -2,6 +2,10 @@
  * 适配器工厂类
  * 统一管理和创建不同平台的适配器实例
  */
+import FeishuAdapter from './feishuAdapter.js';
+import DingtalkAdapter from './dingtalkAdapter.js';
+import WeworkAdapter from './weworkAdapter.js';
+
 class AdapterFactory {
   /**
    * 创建适配器实例
@@ -335,6 +339,4 @@ class AdapterFactory {
 }
 
 // 导出适配器工厂类
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = AdapterFactory;
-} else {
+export default AdapterFactory;

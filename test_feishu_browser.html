@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞书适配器测试</title>
+    <script src="dist/services/adapters/feishuAdapter.js"></script>
+</head>
+<body>
+    <h1>飞书适配器测试</h1>
+    
+    <div>
+        <h2>配置信息</h2>
+        <p><strong>App ID:</strong> cli_a83161fe68be1013</p>
+        <p><strong>Table Token:</strong> DROzbmJw8aDik9sExJtcq98anjh</p>
+    </div>
+    
+    <div>
+        <button onclick="testConnection()">测试连接</button>
+        <button onclick="getTables()">获取表格列表</button>
+    </div>
+    
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f9f9f9;">
+        结果将显示在这里...
+    </div>
+    
+    <script>
+        // 创建飞书适配器实例
+        const config = {
+            appId: 'cli_a83161fe68be1013',
+            appSecret: 'gzqMVM6UZJhOzRHwGyXmChjUQamffTmo',
+            tableToken: 'DROzbmJw8aDik9sExJtcq98anjh'
+        };
+        
+        const adapter = new FeishuAdapter(config);
+        
+        function logResult(message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML += '<p>' + new Date().toLocaleTimeString() + ': ' + message + '</p>';
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+        }
+        
+        function testConnection() {
+            logResult('开始测试连接...');
+            
+            // 这里可以添加连接测试逻辑
+            logResult('连接测试功能待实现');
+        }
+        
+        async function getTables() {
+            logResult('开始获取表格列表...');
+            
+            try {
+                const tables = await adapter.getTables();
+                logResult('获取表格列表成功: ' + JSON.stringify(tables));
+                
+                if (tables && tables.length > 0) {
+                    logResult('找到 ' + tables.length + ' 个表格');
+                    tables.forEach((table, index) => {
+                        logResult('表格 ' + (index + 1) + ': ' + table.table_name + ' (ID: ' + table.table_id + ')');
+                    });
+                } else {
+                    logResult('未找到任何表格');
+                }
+                
+            } catch (error) {
+                logResult('获取表格列表失败: ' + error.message);
+                console.error('错误详情:', error);
+                
+                // 如果是HTTP错误，显示更多信息
+                if (error.response) {
+                    logResult('HTTP状态码: ' + error.response.status);
+                    logResult('响应数据: ' + JSON.stringify(error.response.data));
+                }
+            }
+        }
+        
+        // 页面加载完成后显示基本信息
+        window.onload = function() {
+            logResult('页面加载完成，可以开始测试');
+            logResult('适配器已创建: ' + (adapter ? '是' : '否'));
+        };
+    </script>
+</body>
+</html>

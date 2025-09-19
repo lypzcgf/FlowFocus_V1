@@ -3,12 +3,15 @@
  * 实现飞书多维表格API的具体集成
  * 支持完整的CRUD操作、批量操作、错误处理和重试机制
  */
+import BaseAdapter from './baseAdapter.js';
+
 class FeishuAdapter extends BaseAdapter {
   constructor(config) {
     super(config);
     this.appId = config.appId;
     this.appSecret = config.appSecret;
-    this.tableToken = config.tableToken;
+    // 解决参数名称不一致问题：优先使用tableToken，如果不存在则使用tableId
+    this.tableToken = config.tableToken || config.tableId;
     this.tableId = config.tableId || 'tblDefault';
     this.baseUrl = config.baseUrl || 'https://open.feishu.cn/open-apis/bitable/v1';
     this.authUrl = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
@@ -357,6 +360,85 @@ class FeishuAdapter extends BaseAdapter {
     }
   }
 
+  /**
+   * 获取表格列表
+   * @returns {Promise<Array>} 表格列表
+   */
+  async getTables() {
+    try {
+      // 检查tableToken是否为空或undefined
+      if (!this.tableToken || this.tableToken === 'undefined') {
+        this.log('error', '表格Token为空或未定义', { tableToken: this.tableToken });
+        throw new Error('配置错误：表格Token为空或未定义，请检查配置');
+      }
+      
+      // 根据用户建议，使用包含/tables子路径的API端点
+      const url = `${this.baseUrl}/apps/${this.tableToken}/tables`;
+      
+      this.log('debug', '获取表格列表', {
+        baseUrl: this.baseUrl,
+        tableToken: this.tableToken.substring(0, 5) + '...',
+        url: url
+      });
+      
+      const headers = await this.getAuthHeaders();
+      
+      // 记录完整的认证头信息（隐藏token值）
+      const safeHeaders = { ...headers };
+      if (safeHeaders.Authorization) {
+        safeHeaders.Authorization = 'Bearer ********';
+      }
+      this.log('debug', '请求头信息', { headers: safeHeaders });
+      
+      const response = await this.makeRequest(url, {
+        method: 'GET',
+        headers
+      });
+
+      // 成功获取表格列表
+      this.log('debug', '获取表格列表成功', { responseData: JSON.stringify(response.data).substring(0, 300) });
+      
+      // 检查响应数据格式
+      if (!response.data || !response.data.items) {
+        this.log('warn', '响应数据格式不符合预期，返回默认表格', { response: JSON.stringify(response).substring(0, 300) });
+        return [{ 
+          id: 'tblDefault', 
+          name: '默认表格', 
+          description: 'API返回数据格式不符合预期', 
+          fields: [] 
+        }];
+      }
+      
+      // 映射表格数据
+      return response.data.items.map(table => ({
+        id: table.table_id || 'tblDefault',
+        name: table.name || '未命名表格',
+        description: table.description || '',
+        fields: [] // 字段信息将在后续获取
+      }));
+    } catch (error) {
+      // 增强错误信息，添加当前配置的上下文
+      const appIdSafe = this.appId ? this.appId.substring(0, 5) + '...' : 'undefined';
+      const tableTokenSafe = this.tableToken ? this.tableToken.substring(0, 5) + '...' : 'undefined';
+      
+      const contextError = new Error(`获取表格列表失败，配置信息：appId=${appIdSafe}, tableToken=${tableTokenSafe}, baseUrl=${this.baseUrl}\n错误详情: ${error.message}`);
+      contextError.originalError = error;
+      contextError.configuration = {
+        appId: this.appId,
+        tableToken: this.tableToken,
+        baseUrl: this.baseUrl
+      };
+      
+      this.log('error', '获取飞书表格列表失败', { 
+        error: error.message,
+        appId: appIdSafe,
+        tableToken: tableTokenSafe,
+        baseUrl: this.baseUrl
+      });
+      throw contextError;
+    }
+  }
+
   // 私有方法
   getTableId() {
     // 飞书多维表格中，如果没有指定具体的表格ID，使用默认的第一个表格
@@ -426,7 +508,7 @@ class FeishuAdapter extends BaseAdapter {
   }
 
   /**
-   * 重写makeRequest方法以支持速率限制
+   * 重写makeRequest方法以支持速率限制和飞书API响应格式
    * @param {string} url - 请求URL
    * @param {Object} options - 请求选项
    * @returns {Promise<Object>} 响应结果
@@ -434,14 +516,121 @@ class FeishuAdapter extends BaseAdapter {
   async makeRequest(url, options = {}) {
     await this.checkRateLimit();
     
-    const response = await super.makeRequest(url, options);
+    const defaultOptions = {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...await this.getAuthHeaders()
+      },
+      timeout: this.timeout
+    };
+
+    const requestOptions = { ...defaultOptions, ...options };
     
-    // 更新速率限制信息
-    if (response && response.headers) {
-      this.updateRateLimit(response);
+    // 合并headers
+    if (options.headers) {
+      requestOptions.headers = { ...defaultOptions.headers, ...options.headers };
+    }
+
+    let lastError;
+    
+    // 重试机制
+    for (let attempt = 1; attempt <= this.retryCount; attempt++) {
+      try {
+        this.log('debug', `发送请求到: ${url}，尝试: ${attempt}/${this.retryCount}`, { 
+          method: requestOptions.method, 
+          headers: JSON.stringify(requestOptions.headers),
+          body: requestOptions.body ? JSON.stringify(requestOptions.body).substring(0, 200) : '无请求体'
+        });
+        
+        const response = await this.fetchWithTimeout(url, requestOptions);
+        
+        // 先检查响应状态
+        if (!response.ok) {
+          // 尝试解析错误响应来获取详细的飞书错误信息
+          let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          let requestDetails = `请求URL: ${url}\n请求方法: ${requestOptions.method}\n请求头: ${JSON.stringify(requestOptions.headers).substring(0, 300)}\n`;
+          
+          if (requestOptions.body) {
+            requestDetails += `请求体: ${JSON.stringify(requestOptions.body).substring(0, 300)}\n`;
+          }
+          
+          try {
+            const errorData = await response.json();
+            if (errorData.code) {
+              errorMessage = `飞书API错误 (${errorData.code}): ${errorData.msg}`;
+            } else if (errorData.error) {
+              errorMessage = `飞书API错误: ${errorData.error}`;
+            }
+            requestDetails += `错误响应: ${JSON.stringify(errorData).substring(0, 300)}\n`;
+          } catch (parseError) {
+            // 如果无法解析JSON，使用原始错误信息
+            try {
+              const text = await response.text();
+              if (text) {
+                errorMessage += ` - 响应内容: ${text.substring(0, 200)}`;
+                requestDetails += `原始响应: ${text.substring(0, 300)}\n`;
+              }
+            } catch (textError) {
+              // 忽略文本解析错误
+            }
+          }
+          
+          // 将所有详细信息添加到错误对象中，以便在错误处理时显示
+          const detailedError = new Error(`${errorMessage}\n\n详细信息:\n${requestDetails}`);
+          detailedError.requestUrl = url;
+          detailedError.requestOptions = requestOptions;
+          detailedError.responseStatus = response.status;
+          
+          throw detailedError;
+        }
+        
+        // 更新速率限制信息
+        this.updateRateLimit(response);
+        
+        const data = await response.json();
+        
+        // 直接使用飞书适配器的handleResponse处理API响应
+        return this.handleResponse(data);
+        
+      } catch (error) {
+        lastError = error;
+        
+        console.warn(`请求失败 (尝试 ${attempt}/${this.retryCount}):`, error.message);
+        
+        if (attempt < this.retryCount) {
+          await this.delay(this.retryDelay * attempt);
+        }
+      }
     }
     
-    return response;
+    throw new Error(`请求失败，已重试 ${this.retryCount} 次: ${lastError.message}`);
+  }
+
+  /**
+   * 带超时的fetch请求
+   * @param {string} url - 请求URL
+   * @param {Object} options - 请求选项
+   * @returns {Promise<Response>} 响应对象
+   */
+  async fetchWithTimeout(url, options) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), options.timeout);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('请求超时');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -453,20 +642,30 @@ class FeishuAdapter extends BaseAdapter {
     if (data.code !== 0) {
       // 根据错误码提供更详细的错误信息
       const errorMessages = {
-        40001: '无效的访问令牌',
-        40002: '访问令牌已过期',
-        40003: '应用权限不足',
-        40004: '请求参数错误',
-        40005: '资源不存在',
-        40006: '操作被限制',
-        50001: '服务器内部错误',
-        50002: '服务暂时不可用'
+        40001: '无效的访问令牌 - 请检查应用权限和认证配置',
+        40002: '访问令牌已过期 - 请尝试重新连接',
+        40003: '应用权限不足 - 请确保应用拥有访问多维表格的权限',
+        40004: '请求参数错误 - 可能是参数格式不正确',
+        40005: '资源不存在 - 可能是表格ID错误或表格已被删除',
+        40006: '操作被限制 - 可能是API调用频率过高或账号被限制',
+        50001: '服务器内部错误 - 飞书服务器临时问题',
+        50002: '服务暂时不可用 - 飞书服务正在维护中',
+        91402: '资源不存在 - 可能是表格token错误、路径错误或权限不足'
       };
       
       const errorMessage = errorMessages[data.code] || data.msg || '未知错误';
-      const error = new Error(`飞书API错误 (${data.code}): ${errorMessage}`);
+      // 记录详细的响应数据用于调试
+      this.log('debug', 'API响应错误', {
+        code: data.code,
+        msg: data.msg,
+        errorMessage: errorMessage,
+        fullResponse: JSON.stringify(data)
+      });
+      
+      const error = new Error(`飞书API错误 (${data.code}): ${errorMessage}\n\n完整响应: ${JSON.stringify(data).substring(0, 300)}`);
       error.code = data.code;
       error.platform = 'feishu';
+      error.rawData = data;
       throw error;
     }
     return data;
@@ -493,8 +692,4 @@ class FeishuAdapter extends BaseAdapter {
 }
 
 // 导出飞书适配器类
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = FeishuAdapter;
-} else {
-  window.FeishuAdapter = FeishuAdapter;
-}
+export default FeishuAdapter;

@@ -2,6 +2,10 @@
  * 多维表格统一服务类
  * 提供统一的多维表格操作接口
  */
+import FeishuAdapter from './adapters/feishuAdapter.js';
+import DingtalkAdapter from './adapters/dingtalkAdapter.js';
+import WeworkAdapter from './adapters/weworkAdapter.js';
+
 class TableService {
   constructor(config) {
     this.config = config;
@@ -108,11 +112,20 @@ class TableService {
       throw error;
     }
   }
+
+  /**
+   * 获取表格列表
+   * @returns {Promise<Array>} 表格列表
+   */
+  async getTables() {
+    try {
+      return await this.adapter.getTables();
+    } catch (error) {
+      console.error('获取表格列表失败:', error);
+      throw error;
+    }
+  }
 }
 
 // 导出服务类
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = TableService;
-} else {
-  window.TableService = TableService;
-}
+export default TableService;

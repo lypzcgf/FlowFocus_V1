@@ -3,6 +3,8 @@
  * 实现钉钉多维表格API的具体集成
  * 支持完整的CRUD操作、批量操作、错误处理和重试机制
  */
+import BaseAdapter from './baseAdapter.js';
+
 class DingtalkAdapter extends BaseAdapter {
   constructor(config) {
     super(config);
@@ -506,8 +508,4 @@ class DingtalkAdapter extends BaseAdapter {
 }
 
 // 导出钉钉适配器类
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = DingtalkAdapter;
-} else {
-  window.DingtalkAdapter = DingtalkAdapter;
-}
+export default DingtalkAdapter;

@@ -3,6 +3,8 @@
  * 实现企业微信智能表格API的具体集成
  * 支持完整的CRUD操作、批量操作、错误处理和重试机制
  */
+import BaseAdapter from './baseAdapter.js';
+
 class WeworkAdapter extends BaseAdapter {
   constructor(config) {
     super(config);
@@ -569,8 +571,4 @@ class WeworkAdapter extends BaseAdapter {
 }
 
 // 导出企业微信适配器类
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = WeworkAdapter;
-} else {
-  window.WeworkAdapter = WeworkAdapter;
-}
+export default WeworkAdapter;
