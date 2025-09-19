@@ -1,0 +1,500 @@
+/**
+ * FlowFocus V2.0 错误处理样式
+ * 用于错误通知和用户反馈的视觉设计
+ */
+
+/* 错误通知基础样式 */
+.error-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    max-width: 400px;
+    min-width: 300px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 10000;
+    animation: slideInRight 0.3s ease-out;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+}
+
+/* 错误内容容器 */
+.error-content {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* 错误图标和消息行 */
+.error-notification .error-icon {
+    font-size: 24px;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.error-message {
+    color: #333;
+    font-size: 14px;
+    line-height: 1.4;
+    flex: 1;
+    margin: 0;
+}
+
+/* 错误操作按钮容器 */
+.error-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 8px;
+}
+
+/* 错误操作按钮 */
+.error-action-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+}
+
+.error-action-btn:hover {
+    background: #e9ecef;
+    transform: translateY(-1px);
+}
+
+.error-action-btn:active {
+    transform: translateY(0);
+}
+
+/* 关闭按钮 */
+.error-close-btn {
+    margin-left: auto;
+    padding: 4px 8px;
+    border: none;
+    background: none;
+    font-size: 18px;
+    color: #6c757d;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.error-close-btn:hover {
+    background: #f8f9fa;
+    color: #495057;
+}
+
+/* 错误类型样式 */
+.error-notification.network {
+    border-left: 4px solid #17a2b8;
+}
+
+.error-notification.network .error-action-btn {
+    background: #d1ecf1;
+    color: #0c5460;
+    border-color: #bee5eb;
+}
+
+.error-notification.api {
+    border-left: 4px solid #ffc107;
+}
+
+.error-notification.api .error-action-btn {
+    background: #fff3cd;
+    color: #856404;
+    border-color: #ffeaa7;
+}
+
+.error-notification.storage {
+    border-left: 4px solid #fd7e14;
+}
+
+.error-notification.storage .error-action-btn {
+    background: #ffe8d1;
+    color: #8a4a00;
+    border-color: #fdd5a8;
+}
+
+.error-notification.validation {
+    border-left: 4px solid #dc3545;
+}
+
+.error-notification.validation .error-action-btn {
+    background: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
+}
+
+.error-notification.permission {
+    border-left: 4px solid #6f42c1;
+}
+
+.error-notification.permission .error-action-btn {
+    background: #e2d9f3;
+    color: #4a2c7a;
+    border-color: #d1b3ff;
+}
+
+.error-notification.timeout {
+    border-left: 4px solid #20c997;
+}
+
+.error-notification.timeout .error-action-btn {
+    background: #d1f2eb;
+    color: #0f5132;
+    border-color: #a7e6d7;
+}
+
+.error-notification.unknown {
+    border-left: 4px solid #6c757d;
+}
+
+.error-notification.unknown .error-action-btn {
+    background: #e9ecef;
+    color: #495057;
+    border-color: #ced4da;
+}
+
+/* 严重级别样式 */
+.error-notification.critical {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    color: white;
+    box-shadow: 0 6px 25px rgba(238, 90, 82, 0.3);
+}
+
+.error-notification.critical .error-message {
+    color: white;
+    font-weight: 500;
+}
+
+.error-notification.critical .error-action-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.error-notification.critical .error-action-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.error-notification.critical .error-close-btn {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.error-notification.critical .error-close-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.error-notification.high {
+    background: linear-gradient(135deg, #ff9f43, #ff8c42);
+    color: white;
+}
+
+.error-notification.high .error-message {
+    color: white;
+}
+
+.error-notification.high .error-action-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.error-notification.high .error-action-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.error-notification.high .error-close-btn {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.error-notification.high .error-close-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* 成功通知样式 */
+.success-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    max-width: 350px;
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(40, 167, 69, 0.3);
+    z-index: 10000;
+    animation: slideInRight 0.3s ease-out;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.success-content {
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.success-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.success-message {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+/* 动画效果 */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.error-notification.fade-out,
+.success-notification.fade-out {
+    animation: slideOutRight 0.3s ease-in forwards;
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+    .error-notification,
+    .success-notification {
+        left: 10px;
+        right: 10px;
+        top: 10px;
+        max-width: none;
+        min-width: auto;
+    }
+    
+    .error-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .error-action-btn {
+        text-align: center;
+    }
+    
+    .error-close-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        margin: 0;
+    }
+}
+
+/* 多个通知的堆叠效果 */
+.error-notification:nth-child(n+2) {
+    top: calc(20px + (80px * var(--notification-index, 1)));
+}
+
+.success-notification:nth-child(n+2) {
+    top: calc(20px + (80px * var(--notification-index, 1)));
+}
+
+/* 加载状态 */
+.error-action-btn.loading {
+    position: relative;
+    color: transparent;
+    pointer-events: none;
+}
+
+.error-action-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* 错误详情展开 */
+.error-details {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    font-size: 12px;
+    color: #6c757d;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.error-details.expanded {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.error-details pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 错误统计面板 */
+.error-stats-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: none;
+}
+
+.error-stats-panel.visible {
+    display: block;
+    animation: slideInUp 0.3s ease-out;
+}
+
+.error-stats-header {
+    padding: 16px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.error-stats-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.error-stats-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.error-stats-close:hover {
+    background: #f8f9fa;
+    color: #495057;
+}
+
+.error-stats-content {
+    padding: 16px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.error-stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.error-stat-item:last-child {
+    border-bottom: none;
+}
+
+.error-stat-label {
+    font-size: 14px;
+    color: #495057;
+}
+
+.error-stat-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+    .error-notification {
+        background: #2d3748;
+        color: #e2e8f0;
+    }
+    
+    .error-message {
+        color: #e2e8f0;
+    }
+    
+    .error-action-btn {
+        background: #4a5568;
+        color: #e2e8f0;
+        border-color: #718096;
+    }
+    
+    .error-action-btn:hover {
+        background: #718096;
+    }
+    
+    .success-notification {
+        background: linear-gradient(135deg, #38a169, #2f855a);
+    }
+    
+    .error-stats-panel {
+        background: #2d3748;
+        color: #e2e8f0;
+    }
+    
+    .error-stats-header {
+        border-bottom-color: #4a5568;
+    }
+    
+    .error-stat-item {
+        border-bottom-color: #4a5568;
+    }
+}

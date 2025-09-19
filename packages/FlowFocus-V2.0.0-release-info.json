@@ -1,0 +1,32 @@
+{
+  "name": "FlowFocus V2.0",
+  "version": "2.0.0",
+  "buildDate": "2025-09-17T12:29:42.175Z",
+  "packageFile": "FlowFocus-V2.0.0-2025-09-17.zip",
+  "packageSize": "0.13 MB",
+  "features": [
+    "支持5种大模型（通义千问、DeepSeek、豆包、Kimi、混元）",
+    "多维表格集成（飞书、钉钉、企业微信）",
+    "智能文本改写功能",
+    "数据同步管理",
+    "性能优化和内存管理",
+    "用户友好的界面设计"
+  ],
+  "requirements": {
+    "chrome": "88+",
+    "permissions": [
+      "storage",
+      "activeTab",
+      "scripting",
+      "https://*/*"
+    ]
+  },
+  "installation": [
+    "1. 下载 FlowFocus V2.0 插件包",
+    "2. 打开 Chrome 浏览器，进入扩展程序管理页面 (chrome://extensions/)",
+    "3. 开启\"开发者模式\"",
+    "4. 点击\"加载已解压的扩展程序\"",
+    "5. 选择解压后的插件文件夹",
+    "6. 插件安装完成，可在工具栏看到 FlowFocus 图标"
+  ]
+}

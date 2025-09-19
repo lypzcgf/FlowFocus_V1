@@ -10,12 +10,63 @@
     <div class="container">
         <!-- 标签页导航 -->
         <div class="tab-navigation">
-            <button id="modelConfigTab" class="tab-button active">大模型配置</button>
+            <button id="tableConfigTab" class="tab-button active">多维表格配置</button>
+            <button id="modelConfigTab" class="tab-button">大模型配置</button>
             <button id="rewriteTab" class="tab-button">改写功能</button>
         </div>
 
+        <!-- 多维表格配置标签页 -->
+        <div id="tableConfigPanel" class="tab-panel active">
+            <h2>多维表格配置</h2>
+            
+            <div class="form-group">
+                <label for="tableConfigName">配置名称：</label>
+                <input type="text" id="tableConfigName" placeholder="请输入配置名称">
+            </div>
+            
+            <div class="form-group">
+                <label for="tablePlatform">选择平台：</label>
+                <select id="tablePlatform">
+                    <option value="feishu">飞书多维表格</option>
+                    <option value="dingtalk">钉钉智能表格</option>
+                    <option value="wework">企业微信智能表格</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="tableAppId">应用ID：</label>
+                <input type="text" id="tableAppId" placeholder="请输入应用ID">
+            </div>
+            
+            <div class="form-group">
+                <label for="tableAppSecret">应用密钥：</label>
+                <input type="password" id="tableAppSecret" placeholder="请输入应用密钥">
+            </div>
+            
+            <div class="form-group">
+                <label for="tableId">表格ID：</label>
+                <input type="text" id="tableId" placeholder="请输入表格ID">
+                <input type="hidden" id="tableConfigId">
+            </div>
+            
+            <div class="button-group">
+                <button id="saveTableConfigBtn">保存配置</button>
+                <button id="testTableConnectionBtn">测试连接</button>
+            </div>
+            
+            <div class="history-configs">
+                <div class="history-header">
+                    <label><input type="checkbox" id="selectAllTableConfigs"> 全部</label>
+                    <button id="deleteSelectedTableConfigsBtn">删除</button>
+                </div>
+                <div id="tableConfigsList" class="configs-list">
+                    <div class="empty-message">暂无配置</div>
+                </div>
+            </div>
+        </div>
+
         <!-- 大模型配置标签页 -->
-        <div id="modelConfigPanel" class="tab-panel active">
+        <div id="modelConfigPanel" class="tab-panel">
             <h2>大模型配置</h2>
             
             <div class="form-group">
@@ -28,6 +79,9 @@
                 <select id="modelType">
                     <option value="qwen">Qwen</option>
                     <option value="deepseek">DeepSeek</option>
+                    <option value="volces">Volces</option>
+                    <option value="kimi">Kimi</option>
+                    <option value="hunyuan">Hunyuan</option>
                 </select>
             </div>
             
@@ -124,8 +178,10 @@
                 </div>
             </div>
         </div>
+
+
     </div>
-    
+    <!-- 加载JavaScript文件 -->
     <script type="module" src="sidebar.js"></script>
 </body>
 </html>

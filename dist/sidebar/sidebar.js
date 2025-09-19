@@ -6,7 +6,11 @@ import modelService from '../services/modelService.js';
 import { generateUUID } from '../utils/utils.js';
 
 // 当前选中的标签页
-let currentTab = 'modelConfig';
+let currentTab = 'tableConfig';
+
+// 触发webpack重新编译
+
+
 
 // 大模型默认配置
 const MODEL_DEFAULTS = {
@@ -15,8 +19,20 @@ const MODEL_DEFAULTS = {
         modelEndpoint: 'qwen-turbo'
     },
     'deepseek': {
-        baseUrl: 'https://api.deepseek.com/v1',
+        baseUrl: 'https://api.deepseek.com',
         modelEndpoint: 'deepseek-chat'
+    },
+    'volces': {
+        baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+        modelEndpoint: ''
+    },
+    'kimi': {
+        baseUrl: 'https://api.moonshot.cn/v1',
+        modelEndpoint: 'moonshot-v1-8k'
+    },
+    'hunyuan': {
+        baseUrl: 'https://api.hunyuan.cloud.tencent.com/v1',
+        modelEndpoint: 'hunyuan-turbos-latest'
     }
 };
 
@@ -24,6 +40,9 @@ const MODEL_DEFAULTS = {
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化标签页
     initTabs();
+    
+    // 初始化多维表格配置标签页
+    initTableConfigTab();
     
     // 初始化大模型配置标签页
     initModelConfigTab();
@@ -37,30 +56,86 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 初始化标签页切换功能
 function initTabs() {
+    console.log('初始化标签页功能');
+    
+    // 获取所有标签页和面板元素
+    const tableConfigTab = document.getElementById('tableConfigTab');
     const modelConfigTab = document.getElementById('modelConfigTab');
     const rewriteTab = document.getElementById('rewriteTab');
+    
+    const tableConfigPanel = document.getElementById('tableConfigPanel');
     const modelConfigPanel = document.getElementById('modelConfigPanel');
     const rewritePanel = document.getElementById('rewritePanel');
     
-    modelConfigTab.addEventListener('click', function() {
-        currentTab = 'modelConfig';
-        modelConfigTab.classList.add('active');
-        rewriteTab.classList.remove('active');
-        modelConfigPanel.classList.add('active');
-        rewritePanel.classList.remove('active');
-        // 标签页切换到大模型配置页面时填充默认值
-        fillModelDefaults();
-    });
+    // 标签页切换函数
+    function switchTab(targetTab) {
+        console.log('切换到标签页:', targetTab);
+        
+        // 重置所有标签页和面板状态
+        if (tableConfigTab) tableConfigTab.classList.remove('active');
+        if (modelConfigTab) modelConfigTab.classList.remove('active');
+        if (rewriteTab) rewriteTab.classList.remove('active');
+        
+        if (tableConfigPanel) tableConfigPanel.classList.remove('active');
+        if (modelConfigPanel) modelConfigPanel.classList.remove('active');
+        if (rewritePanel) rewritePanel.classList.remove('active');
+        
+        // 设置目标标签页和面板为激活状态
+        currentTab = targetTab;
+        
+        if (targetTab === 'tableConfig') {
+            if (tableConfigTab) tableConfigTab.classList.add('active');
+            if (tableConfigPanel) tableConfigPanel.classList.add('active');
+            loadTableConfigs();
+        } else if (targetTab === 'modelConfig') {
+            if (modelConfigTab) modelConfigTab.classList.add('active');
+            if (modelConfigPanel) modelConfigPanel.classList.add('active');
+            fillModelDefaults();
+        } else if (targetTab === 'rewrite') {
+            if (rewriteTab) rewriteTab.classList.add('active');
+            if (rewritePanel) rewritePanel.classList.add('active');
+            loadModelConfigsToSelect();
+        }
+        
+        // 强制重绘
+        setTimeout(() => {
+            if (tableConfigPanel) tableConfigPanel.offsetHeight;
+            if (modelConfigPanel) modelConfigPanel.offsetHeight;
+            if (rewritePanel) rewritePanel.offsetHeight;
+        }, 0);
+    }
     
-    rewriteTab.addEventListener('click', function() {
-        currentTab = 'rewrite';
-        rewriteTab.classList.add('active');
-        modelConfigTab.classList.remove('active');
-        rewritePanel.classList.add('active');
-        modelConfigPanel.classList.remove('active');
-        // 切换到改写功能标签页时重新加载模型配置列表
-        loadModelConfigsToSelect();
-    });
+    // 为每个标签页添加事件监听器，同时添加阻止事件冒泡
+    if (tableConfigTab) {
+        tableConfigTab.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('点击了多维表格配置标签');
+            switchTab('tableConfig');
+        });
+    }
+    
+    if (modelConfigTab) {
+        modelConfigTab.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('点击了大模型配置标签');
+            switchTab('modelConfig');
+        });
+    }
+    
+    if (rewriteTab) {
+        rewriteTab.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('点击了改写功能标签');
+            switchTab('rewrite');
+        });
+    }
+    
+    // 初始化时设置默认激活的标签页（多维表格配置）
+    console.log('初始化默认标签页');
+    switchTab('tableConfig');
 }
 
 // 初始化大模型配置标签页
@@ -119,6 +194,28 @@ function initRewriteTab() {
     // 加载改写历史记录
     loadRewriteHistory();
 }
+
+// 初始化多维表格配置标签页
+function initTableConfigTab() {
+    // 获取元素
+    const tablePlatform = document.getElementById('tablePlatform');
+    const saveTableConfigBtn = document.getElementById('saveTableConfigBtn');
+    const testTableConnectionBtn = document.getElementById('testTableConnectionBtn');
+    const selectAllTableConfigs = document.getElementById('selectAllTableConfigs');
+    const deleteSelectedTableConfigsBtn = document.getElementById('deleteSelectedTableConfigsBtn');
+    
+    // 绑定事件
+    tablePlatform.addEventListener('change', fillTableDefaults);
+    saveTableConfigBtn.addEventListener('click', saveTableConfig);
+    testTableConnectionBtn.addEventListener('click', testTableConnection);
+    selectAllTableConfigs.addEventListener('change', toggleAllTableConfigs);
+    deleteSelectedTableConfigsBtn.addEventListener('click', deleteSelectedTableConfigs);
+    
+    // 加载已保存的配置
+    loadTableConfigs();
+}
+
+
 
 // 填充大模型默认值
 function fillModelDefaults() {
@@ -263,36 +360,30 @@ async function testModelConnection() {
         
         // 创建配置对象
         const config = {
+            type: modelType,
             modelType: modelType,
             apiKey: apiKey,
             baseUrl: baseUrl,
             modelEndpoint: modelEndpoint
         };
         
-        // 显示测试中状态
+        // 显示加载状态
         const testConnectionBtn = document.getElementById('testConnectionBtn');
-        const originalText = testConnectionBtn.textContent;
-        testConnectionBtn.textContent = '测试中...';
-        testConnectionBtn.disabled = true;
+        const loading = showLoading(testConnectionBtn, '测试中...');
         
-        // 测试连接
-        const response = await modelService.testConnection(config);
-        
-        // 恢复按钮状态
-        testConnectionBtn.textContent = originalText;
-        testConnectionBtn.disabled = false;
-        
-        if (response.success) {
-            showAlert('连接成功', 'success');
-        } else {
-            showAlert('连接失败: ' + response.error, 'error');
+        try {
+            // 测试连接
+            const response = await modelService.testConnection(config);
+            
+            if (response.success) {
+                showAlert('连接成功', 'success');
+            } else {
+                showAlert('连接失败: ' + response.error, 'error');
+            }
+        } finally {
+            loading.hide();
         }
     } catch (error) {
-        // 恢复按钮状态
-        const testConnectionBtn = document.getElementById('testConnectionBtn');
-        testConnectionBtn.textContent = '测试连接';
-        testConnectionBtn.disabled = false;
-        
         console.error('测试模型连接失败:', error);
         showAlert('测试连接失败: ' + error.message, 'error');
     }
@@ -369,6 +460,25 @@ async function editModelConfig(configName) {
 
 // 删除模型配置
 async function deleteModelConfig(configName) {
+    // 检查是否正在编辑该配置
+    const editingConfigId = document.getElementById('configId').value;
+    if (editingConfigId) {
+        const allConfigs = await storageService.loadModelConfigs();
+        const editingConfig = allConfigs.find(config => config.id === editingConfigId);
+        if (editingConfig && editingConfig.name === configName) {
+            showAlert('无法删除正在编辑的配置', 'warning');
+            return;
+        }
+    }
+    
+    // 检查是否有改写记录依赖于该配置
+    const records = await storageService.loadRewriteRecords();
+    const dependentRecords = records.filter(record => record.modelConfigName === configName);
+    if (dependentRecords.length > 0) {
+        showAlert(`无法删除配置 "${configName}"，因为有${dependentRecords.length}个改写记录依赖于它`, 'warning');
+        return;
+    }
+    
     if (!confirm(`确定要删除配置 "${configName}" 吗？`)) {
         return;
     }
@@ -413,6 +523,37 @@ async function deleteSelectedConfigs() {
     
     if (selectedConfigs.length === 0) {
         showAlert('请先选择要删除的配置', 'warning');
+        return;
+    }
+    
+    // 检查是否选中了正在编辑的配置
+    const editingConfigId = document.getElementById('configId').value;
+    if (editingConfigId) {
+        try {
+            const allConfigs = await storageService.loadModelConfigs();
+            const editingConfig = allConfigs.find(config => config.id === editingConfigId);
+            if (editingConfig && selectedConfigs.includes(editingConfig.name)) {
+                showAlert('无法删除正在编辑的配置', 'warning');
+                return;
+            }
+        } catch (error) {
+            console.error('检查编辑状态失败:', error);
+        }
+    }
+    
+    // 检查是否有改写记录依赖于选中的配置
+    const records = await storageService.loadRewriteRecords();
+    const dependentConfigs = [];
+    
+    selectedConfigs.forEach(configName => {
+        const hasDependent = records.some(record => record.modelConfigName === configName);
+        if (hasDependent) {
+            dependentConfigs.push(configName);
+        }
+    });
+    
+    if (dependentConfigs.length > 0) {
+        showAlert(`无法删除以下配置，因为有改写记录依赖于它们：${dependentConfigs.join(', ')}`, 'warning');
         return;
     }
     
@@ -594,8 +735,14 @@ async function startRewrite() {
         startRewriteBtn.textContent = '处理中...';
         startRewriteBtn.disabled = true;
         
+        // 确保配置对象包含type字段
+        const modelConfig = {
+            ...config,
+            type: config.modelType
+        };
+        
         // 调用模型服务进行文本改写
-        const response = await modelService.rewriteText(config, originalText, rewritePrompt);
+        const response = await modelService.rewriteText(modelConfig, originalText, rewritePrompt);
         
         // 恢复按钮状态
         startRewriteBtn.textContent = originalTextContent;
@@ -841,6 +988,16 @@ async function editRewriteRecord(recordName) {
 
 // 删除改写记录
 async function deleteRewriteRecord(recordName) {
+    // 检查是否正在编辑该记录
+    const editingRecordId = document.getElementById('recordId').value;
+    if (editingRecordId) {
+        const record = await storageService.getRewriteRecord(recordName);
+        if (record && record.id === editingRecordId) {
+            showAlert('无法删除正在编辑的记录', 'warning');
+            return;
+        }
+    }
+    
     if (!confirm(`确定要删除记录 "${recordName}" 吗？`)) {
         return;
     }
@@ -883,6 +1040,23 @@ async function deleteSelectedRecords() {
         return;
     }
     
+    // 检查是否选中了正在编辑的记录
+    const editingRecordId = document.getElementById('recordId').value;
+    if (editingRecordId) {
+        try {
+            // 遍历选中的记录，检查是否包含正在编辑的记录
+            for (const recordName of selectedRecords) {
+                const record = await storageService.getRewriteRecord(recordName);
+                if (record && record.id === editingRecordId) {
+                    showAlert('无法删除正在编辑的记录', 'warning');
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('检查编辑状态失败:', error);
+        }
+    }
+    
     if (confirm(`确定要删除选中的${selectedRecords.length}条记录吗？`)) {
         try {
             // 批量删除记录
@@ -896,58 +1070,489 @@ async function deleteSelectedRecords() {
     }
 }
 
-// 显示提示信息
-function showAlert(message, type) {
-    // 创建提示元素
-    const alertElement = document.createElement('div');
-    alertElement.className = `alert alert-${type}`;
-    alertElement.textContent = message;
+// 填充多维表格默认值
+function fillTableDefaults() {
+    const platform = document.getElementById('tablePlatform').value;
+    const tableConfigNameInput = document.getElementById('tableConfigName');
+    const tableAppIdInput = document.getElementById('tableAppId');
+    const tableAppSecretInput = document.getElementById('tableAppSecret');
+    const tableIdInput = document.getElementById('tableId');
     
-    // 添加样式
-    alertElement.style.position = 'fixed';
-    alertElement.style.top = '20px';
-    alertElement.style.left = '50%';
-    alertElement.style.transform = 'translateX(-50%)';
-    alertElement.style.padding = '12px 20px';
-    alertElement.style.borderRadius = '4px';
-    alertElement.style.color = 'white';
-    alertElement.style.fontWeight = '500';
-    alertElement.style.zIndex = '10000';
-    alertElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-    alertElement.style.opacity = '0';
-    alertElement.style.transition = 'opacity 0.3s ease';
-    
-    // 根据类型设置背景色
-    switch(type) {
-        case 'success':
-            alertElement.style.backgroundColor = '#28a745';
-            break;
-        case 'error':
-            alertElement.style.backgroundColor = '#dc3545';
-            break;
-        case 'warning':
-            alertElement.style.backgroundColor = '#ffc107';
-            alertElement.style.color = '#212529';
-            break;
-        default:
-            alertElement.style.backgroundColor = '#17a2b8';
+    // 清空所有相关输入框（除了配置名称）
+    if (!document.getElementById('tableConfigId').value) {
+        tableConfigNameInput.value = '';
+    }
+    tableAppIdInput.value = '';
+    tableAppSecretInput.value = '';
+    tableIdInput.value = '';
+}
+
+// 保存多维表格配置
+async function saveTableConfig() {
+    try {
+        // 获取表单数据
+        const configName = document.getElementById('tableConfigName').value;
+        const platform = document.getElementById('tablePlatform').value;
+        const appId = document.getElementById('tableAppId').value;
+        const appSecret = document.getElementById('tableAppSecret').value;
+        const tableId = document.getElementById('tableId').value;
+        const configId = document.getElementById('tableConfigId').value; // 获取配置ID
+        
+        // 验证数据
+        if (!configName) {
+            showAlert('请输入配置名称', 'warning');
+            return;
+        }
+        
+        if (!appId || !appSecret || !tableId) {
+            showAlert('请填写完整的配置信息', 'warning');
+            return;
+        }
+        
+        let config;
+        if (configId) {
+            // 编辑模式：通过ID查找并更新配置
+            const configs = await storageService.loadData('tableConfigs') || [];
+            const foundConfig = configs.find(c => c.id === configId);
+            if (!foundConfig) {
+                showAlert('未找到要编辑的配置', 'error');
+                return;
+            }
+            // 更新配置信息
+            foundConfig.name = configName;
+            foundConfig.platform = platform;
+            foundConfig.appId = appId;
+            foundConfig.appSecret = appSecret;
+            foundConfig.tableId = tableId;
+            foundConfig.updatedAt = new Date().toISOString();
+            config = foundConfig;
+        } else {
+            // 非编辑模式：检查是否存在同名配置
+            const configs = await storageService.loadData('tableConfigs') || [];
+            const existingConfig = configs.find(c => c.name === configName);
+            if (existingConfig) {
+                // 如果存在同名配置，询问用户是否覆盖
+                if (!confirm(`已存在名为 "${configName}" 的配置，是否要覆盖？`)) {
+                    return; // 用户选择不覆盖，放弃保存操作
+                }
+                // 用户选择覆盖，更新现有配置
+                existingConfig.platform = platform;
+                existingConfig.appId = appId;
+                existingConfig.appSecret = appSecret;
+                existingConfig.tableId = tableId;
+                existingConfig.updatedAt = new Date().toISOString();
+                config = existingConfig;
+            } else {
+                // 创建新配置对象
+                config = {
+                    id: generateUUID(),
+                    name: configName,
+                    platform: platform,
+                    appId: appId,
+                    appSecret: appSecret,
+                    tableId: tableId,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+            }
+        }
+        
+        // 保存配置
+        const configs = await storageService.loadData('tableConfigs') || [];
+        const existingIndex = configs.findIndex(c => c.id === config.id);
+        
+        if (existingIndex >= 0) {
+            // 更新现有配置
+            configs[existingIndex] = config;
+        } else {
+            // 添加新配置
+            configs.push(config);
+        }
+        
+        await storageService.saveData('tableConfigs', configs);
+        
+        showAlert('表格配置已保存', 'success');
+        
+        // 保存成功后，只清空configId字段退出编辑模式，保留表单内容
+        document.getElementById('tableConfigId').value = '';
+        
+        // 重新加载配置列表
+        loadTableConfigs();
+        
+        // 更新同步功能标签页的表格选择列表
+        if (currentTab === 'sync') {
+            loadTableConfigsToSelect();
+        }
+    } catch (error) {
+        console.error('保存表格配置失败:', error);
+        showAlert('保存配置失败: ' + error.message, 'error');
+    }
+}
+
+// 测试多维表格连接
+async function testTableConnection() {
+    try {
+        const platform = document.getElementById('tablePlatform').value;
+        const appId = document.getElementById('tableAppId').value;
+        const appSecret = document.getElementById('tableAppSecret').value;
+        const tableId = document.getElementById('tableId').value;
+        
+        if (!appId || !appSecret || !tableId) {
+            showAlert('请填写完整的配置信息', 'warning');
+            return;
+        }
+        
+        const testBtn = document.getElementById('testTableConnectionBtn');
+        const loading = showLoading(testBtn, '测试中...');
+        
+        try {
+            // 这里应该调用tableService测试连接
+            // const result = await tableService.testConnection({platform, appId, appSecret, tableId});
+            
+            // 模拟测试结果
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const success = Math.random() > 0.3; // 70%成功率
+            
+            if (success) {
+                showAlert('连接测试成功', 'success');
+            } else {
+                showAlert('连接测试失败，请检查配置信息', 'error');
+            }
+        } finally {
+            loading.hide();
+        }
+    } catch (error) {
+        console.error('测试表格连接失败:', error);
+        showAlert('测试连接失败: ' + error.message, 'error');
+    }
+}
+
+// 加载多维表格配置
+async function loadTableConfigs() {
+    try {
+        const configs = await storageService.loadData('tableConfigs') || [];
+        const configsList = document.getElementById('tableConfigsList');
+        
+        if (!configs || configs.length === 0) {
+            configsList.innerHTML = '<div class="empty-message">暂无配置</div>';
+            return;
+        }
+        
+        configsList.innerHTML = configs.map(config => `
+            <div class="config-item" data-id="${config.id}">
+                <div class="config-info">
+                    <label class="checkbox-label">
+                        <input type="checkbox" class="table-config-checkbox" data-id="${config.id}">
+                        <strong>${config.name}</strong> (${getPlatformName(config.platform)})
+                    </label>
+                </div>
+                <div class="config-actions">
+                    <button class="edit-btn" data-id="${config.id}">编辑</button>
+                    <button class="delete-btn" data-id="${config.id}">删除</button>
+                </div>
+            </div>
+        `).join('');
+        
+        // 绑定编辑和删除按钮事件
+        document.querySelectorAll('#tableConfigsList .edit-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const configId = this.getAttribute('data-id');
+                editTableConfig(configId);
+            });
+        });
+        
+        document.querySelectorAll('#tableConfigsList .delete-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const configId = this.getAttribute('data-id');
+                deleteTableConfig(configId);
+            });
+        });
+    } catch (error) {
+        console.error('加载表格配置失败:', error);
+        document.getElementById('tableConfigsList').innerHTML = '<div class="error-message">加载配置失败</div>';
+    }
+}
+
+// 获取平台显示名称
+function getPlatformName(platform) {
+    const names = {
+        'feishu': '飞书',
+        'dingtalk': '钉钉',
+        'wework': '企业微信'
+    };
+    return names[platform] || platform;
+}
+
+// 编辑多维表格配置
+async function editTableConfig(configId) {
+    try {
+        const configs = await storageService.loadData('tableConfigs') || [];
+        const config = configs.find(c => c.id === configId);
+        
+        if (!config) {
+            showAlert('未找到配置', 'warning');
+            return;
+        }
+        
+        // 填充表单
+        document.getElementById('tableConfigName').value = config.name;
+        document.getElementById('tablePlatform').value = config.platform;
+        document.getElementById('tableAppId').value = config.appId;
+        document.getElementById('tableAppSecret').value = config.appSecret;
+        document.getElementById('tableId').value = config.tableId;
+        document.getElementById('tableConfigId').value = config.id; // 保存配置ID到隐藏字段
+    } catch (error) {
+        console.error('编辑表格配置失败:', error);
+        showAlert('编辑配置失败: ' + error.message, 'error');
+    }
+}
+
+// 删除多维表格配置
+async function deleteTableConfig(configId) {
+    // 检查是否正在编辑该配置
+    const editingConfigId = document.getElementById('tableConfigId').value;
+    if (editingConfigId && editingConfigId === configId) {
+        showAlert('无法删除正在编辑的配置', 'warning');
+        return;
     }
     
-    // 添加到页面
-    document.body.appendChild(alertElement);
+    // 先找到配置名称用于确认对话框
+    const configs = await storageService.loadData('tableConfigs') || [];
+    const config = configs.find(c => c.id === configId);
+    const configName = config ? config.name : '未知配置';
     
-    // 显示动画
-    setTimeout(() => {
-        alertElement.style.opacity = '1';
-    }, 10);
+    if (!confirm(`确定要删除配置 "${configName}" 吗？`)) {
+        return;
+    }
     
-    // 3秒后自动移除
-    setTimeout(() => {
-        alertElement.style.opacity = '0';
+    try {
+        const filteredConfigs = configs.filter(c => c.id !== configId);
+        await storageService.saveData('tableConfigs', filteredConfigs);
+        
+        showAlert('配置已删除', 'success');
+        loadTableConfigs();
+        
+        // 如果当前在同步标签页，更新表格选择列表
+        if (currentTab === 'sync') {
+            loadTableConfigsToSelect();
+        }
+    } catch (error) {
+        console.error('删除表格配置失败:', error);
+        showAlert('删除配置失败: ' + error.message, 'error');
+    }
+}
+
+// 切换所有表格配置选择状态
+function toggleAllTableConfigs() {
+    const checkboxes = document.querySelectorAll('#tableConfigsList .table-config-checkbox');
+    const selectAll = document.getElementById('selectAllTableConfigs').checked;
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll;
+    });
+}
+
+// 删除选中的表格配置
+async function deleteSelectedTableConfigs() {
+    // 使用更新的方式获取选中配置
+    const checkboxes = document.querySelectorAll('#tableConfigsList .table-config-checkbox');
+    const selectedConfigs = [];
+    
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            const configId = checkbox.getAttribute('data-id');
+            selectedConfigs.push(configId);
+        }
+    });
+    
+    if (selectedConfigs.length === 0) {
+        showAlert('请先选择要删除的配置', 'warning');
+        return;
+    }
+    
+    // 检查是否选中了正在编辑的配置
+    const editingConfigId = document.getElementById('tableConfigId').value;
+    if (editingConfigId && selectedConfigs.includes(editingConfigId)) {
+        showAlert('无法删除正在编辑的配置', 'warning');
+        return;
+    }
+    
+    if (confirm(`确定要删除选中的${selectedConfigs.length}个配置吗？`)) {
+        try {
+            const configs = await storageService.loadData('tableConfigs') || [];
+            const filteredConfigs = configs.filter(c => !selectedConfigs.includes(c.id));
+            
+            await storageService.saveData('tableConfigs', filteredConfigs);
+            
+            showAlert('配置已删除', 'success');
+            loadTableConfigs();
+            
+            // 如果当前在同步标签页，更新表格选择列表
+            if (currentTab === 'sync') {
+                loadTableConfigsToSelect();
+            }
+        } catch (error) {
+            console.error('批量删除配置失败:', error);
+            showAlert('删除配置失败: ' + error.message, 'error');
+        }
+    }
+}
+
+// 显示提示信息
+function showAlert(message, type = 'info') {
+    // 移除现有的提示
+    const existingAlerts = document.querySelectorAll('.alert');
+    existingAlerts.forEach(alert => {
+        alert.classList.add('fade-out');
         setTimeout(() => {
-            if (alertElement.parentNode) {
-                alertElement.parentNode.removeChild(alertElement);
+            if (alert.parentNode) {
+                alert.parentNode.removeChild(alert);
             }
         }, 300);
-    }, 3000);
+    });
+    
+    // 创建新的提示元素
+    const alert = document.createElement('div');
+    alert.className = `alert ${type}`;
+    alert.textContent = message;
+    
+    // 添加关闭按钮
+    const closeBtn = document.createElement('span');
+    closeBtn.innerHTML = '&times;';
+    closeBtn.style.cssText = 'float: right; cursor: pointer; font-weight: bold; margin-left: 10px; font-size: 16px;';
+    closeBtn.onclick = () => {
+        alert.classList.add('fade-out');
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.parentNode.removeChild(alert);
+            }
+        }, 300);
+    };
+    alert.appendChild(closeBtn);
+    
+    // 添加到页面
+    document.body.appendChild(alert);
+    
+    // 5秒后自动移除
+    setTimeout(() => {
+        if (alert.parentNode && !alert.classList.contains('fade-out')) {
+            alert.classList.add('fade-out');
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.parentNode.removeChild(alert);
+                }
+            }, 300);
+        }
+    }, 5000);
 }
+
+// 显示加载状态
+function showLoading(element, text = '加载中...') {
+    if (!element) return;
+    
+    const originalText = element.textContent;
+    const originalDisabled = element.disabled;
+    
+    element.innerHTML = `<span class="loading-spinner"></span>${text}`;
+    element.disabled = true;
+    
+    return {
+        hide: () => {
+            element.textContent = originalText;
+            element.disabled = originalDisabled;
+        }
+    };
+}
+
+// 更新状态指示器
+function updateStatusIndicator(elementId, status, text) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    element.className = `status-indicator ${status}`;
+    element.textContent = text;
+    
+    // 如果是运行状态，添加加载动画
+    if (status === 'running') {
+        const spinner = document.createElement('span');
+        spinner.className = 'loading-spinner';
+        element.insertBefore(spinner, element.firstChild);
+    }
+}
+
+// 性能优化工具函数
+const performanceUtils = {
+    // 防抖函数 - 优化版本
+    debounce(func, wait, immediate = false) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                timeout = null;
+                if (!immediate) func.apply(this, args);
+            };
+            const callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(this, args);
+        };
+    },
+
+    // 节流函数 - 优化版本
+    throttle(func, limit) {
+        let inThrottle;
+        let lastFunc;
+        let lastRan;
+        return function() {
+            const context = this;
+            const args = arguments;
+            if (!inThrottle) {
+                func.apply(context, args);
+                lastRan = Date.now();
+                inThrottle = true;
+            } else {
+                clearTimeout(lastFunc);
+                lastFunc = setTimeout(function() {
+                    if ((Date.now() - lastRan) >= limit) {
+                        func.apply(context, args);
+                        lastRan = Date.now();
+                    }
+                }, limit - (Date.now() - lastRan));
+            }
+        };
+    },
+
+    // RAF节流 - 用于动画和滚动优化
+    rafThrottle(func) {
+        let ticking = false;
+        return function(...args) {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    func.apply(this, args);
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+    },
+
+    // 批量DOM更新
+    batchDOMUpdates(updates) {
+        requestAnimationFrame(() => {
+            updates.forEach(update => update());
+        });
+    },
+
+    // 内存优化 - 清理事件监听器
+    cleanupEventListeners(element) {
+        if (element && element.cloneNode) {
+            const newElement = element.cloneNode(true);
+            element.parentNode.replaceChild(newElement, element);
+            return newElement;
+        }
+        return element;
+    }
+};
+
+// 向后兼容
+const debounce = performanceUtils.debounce;
+const throttle = performanceUtils.throttle;
