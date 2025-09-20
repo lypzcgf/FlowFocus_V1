@@ -4,6 +4,7 @@
  * 支持完整的CRUD操作、批量操作、错误处理和重试机制
  */
 import BaseAdapter from './baseAdapter.js';
+import { DateUtils } from '../../utils/helpers.js';
 
 class FeishuAdapter extends BaseAdapter {
   constructor(config) {
@@ -263,7 +264,9 @@ class FeishuAdapter extends BaseAdapter {
             'App Secret': this.appSecret ? '已设置 (加密)' : '未设置',
             '多维表格token': configData['多维表格token'],
             '多维表格ID': configData['多维表格ID'],
-            '创建时间': configData['创建时间'] || new Date().toISOString()
+            '创建时间': configData['创建时间'] ? DateUtils.format(new Date(configData['创建时间']), 'YYYY-MM-DD HH:mm:ss') : DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+            '更新时间': DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+            '状态': '正常'
           })
         }
       };
