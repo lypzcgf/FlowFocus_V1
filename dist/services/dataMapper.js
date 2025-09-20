@@ -3,6 +3,8 @@
  * 提供JSON数据序列化和反序列化功能
  * 支持跨平台数据转换、压缩优化、版本管理和数据迁移
  */
+import { DateUtils } from '../utils/helpers.js';
+
 class DataMapper {
   /**
    * 序列化本地数据为多维表格格式
@@ -29,7 +31,6 @@ class DataMapper {
       };
       
       // 保留必要的表格信息字段，确保在飞书适配器中能正确构建URL
-      // 这是修复app_token和table_id变为undefined问题的关键
       if (localData.tableToken) {
         serializedData.tableToken = localData.tableToken;
       }
@@ -43,6 +44,19 @@ class DataMapper {
           serializedData.modelType = localData.type;
           serializedData.modelName = localData.name;
           serializedData.isActive = localData.isActive || false;
+          
+          // 为大模型配置特别构建"数据集合"字段
+          // 确保包含完整的大模型配置信息
+          serializedData['数据集合'] = JSON.stringify({
+            '配置名称': localData.name,
+            '大模型品牌': localData.modelType || localData.type || '未知',
+            'API Key': localData.apiKey ? '已设置' : '未设置',
+            'Base URL': localData.baseUrl,
+            '模型端点': localData.modelEndpoint,
+            '创建时间': localData.createdAt ? DateUtils.format(new Date(localData.createdAt), 'YYYY-MM-DD HH:mm:ss') : DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+            '更新时间': DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+            '状态': '正常'
+          });
           break;
           
         case 'rewriteRecord':

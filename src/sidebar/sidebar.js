@@ -430,16 +430,25 @@ async function loadModelConfigs() {
                 </div>
                 <div class="config-actions">
                     <button class="edit-btn" data-name="${config.name}">编辑</button>
+                    <button class="sync-btn" data-name="${config.name}">同步</button>
                     <button class="delete-btn" data-name="${config.name}">删除</button>
                 </div>
             </div>
         `).join('');
         
-        // 绑定编辑和删除按钮事件
+        // 绑定编辑、同步和删除按钮事件
         document.querySelectorAll('.edit-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const configName = this.getAttribute('data-name');
                 editModelConfig(configName);
+            });
+        });
+        
+        document.querySelectorAll('.sync-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const configItem = this.closest('.config-item');
+                const configId = configItem.dataset.id;
+                showModelSyncDialog(configId);
             });
         });
         
@@ -1299,6 +1308,11 @@ async function loadTableConfigs() {
                 showSyncDialog(configId);
             });
         });
+        
+        // 绑定批量同步按钮事件
+        document.getElementById('batchSyncConfigsBtn').addEventListener('click', function() {
+            batchSyncModelConfigs();
+        });
     } catch (error) {
         console.error('加载表格配置失败:', error);
         document.getElementById('tableConfigsList').innerHTML = '<div class="error-message">加载配置失败</div>';
@@ -1639,18 +1653,44 @@ async function showSyncDialog(configId) {
         // 加载可用的目标配置
         await loadTargetConfigs(configId);
         
-        // 获取当前选中的目标配置ID并立即加载对应表格
-        //const targetConfigId = document.getElementById('targetConfigSelect').value;
-        //if (targetConfigId) {
-        //    await loadTargetTables(targetConfigId);
-        //}
+        // 显示对话框
+        const modal = document.getElementById('syncDialog');
+        modal.style.display = 'block';
+        
+        // 绑定对话框事件
+        bindSyncDialogEvents(configId, 'tableConfig');
+        
+    } catch (error) {
+        console.error('显示同步对话框失败:', error);
+        showAlert('打开同步对话框失败: ' + error.message, 'error');
+    }
+}
+
+// 显示模型配置同步对话框
+async function showModelSyncDialog(configId) {
+    try {
+        // 获取配置信息
+        const configs = await storageService.loadData('modelConfigs') || [];
+        const config = configs.find(c => c.id === configId);
+        
+        if (!config) {
+            showAlert('未找到配置信息', 'warning');
+            return;
+        }
+        
+        // 更新对话框信息
+        document.getElementById('selectedRecordsCount').textContent = '共 1 条';
+        document.getElementById('selectedConfigNames').textContent = config.name;
+        
+        // 加载可用的目标配置
+        await loadTargetConfigs(configId);
         
         // 显示对话框
         const modal = document.getElementById('syncDialog');
         modal.style.display = 'block';
         
         // 绑定对话框事件
-        bindSyncDialogEvents(configId);
+        bindSyncDialogEvents(configId, 'modelConfig');
         
     } catch (error) {
         console.error('显示同步对话框失败:', error);
@@ -1699,7 +1739,7 @@ async function loadTargetConfigs(currentConfigId) {
 }
 
 // 绑定同步对话框事件
-function bindSyncDialogEvents(configId) {
+function bindSyncDialogEvents(configId, configType = 'tableConfig') {
     // 关闭按钮
     document.querySelector('#syncDialog .close').onclick = function() {
         document.getElementById('syncDialog').style.display = 'none';
@@ -1710,8 +1750,9 @@ function bindSyncDialogEvents(configId) {
         const syncDialog = document.getElementById('syncDialog');
         const confirmSyncBtn = document.getElementById('confirmSyncBtn');
         
-        // 清除批量同步标记
+        // 清除批量同步标记和配置类型
         confirmSyncBtn.removeAttribute('data-selected-configs');
+        confirmSyncBtn.removeAttribute('data-config-type');
         
         // 关闭对话框
         syncDialog.style.display = 'none';
@@ -1719,6 +1760,8 @@ function bindSyncDialogEvents(configId) {
     
     // 确定按钮
     document.getElementById('confirmSyncBtn').onclick = function() {
+        // 保存配置类型信息
+        this.setAttribute('data-config-type', configType);
         startSync(configId);
     };
     
@@ -1769,7 +1812,58 @@ async function loadTargetTables(targetConfigId) {
     }
 }
 
-// 批量同步配置
+// 批量同步大模型配置
+async function batchSyncModelConfigs() {
+    // 获取选中的配置
+    const checkboxes = document.querySelectorAll('#configsList .config-checkbox');
+    const selectedConfigs = [];
+    
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            const configItem = checkbox.closest('.config-item');
+            const configId = configItem.dataset.id;
+            selectedConfigs.push(configId);
+        }
+    });
+    
+    if (selectedConfigs.length === 0) {
+        showAlert('请先选择要同步的大模型配置', 'warning');
+        return;
+    }
+    
+    try {
+        // 获取选中的配置详情
+        const allConfigs = await storageService.loadData('modelConfigs') || [];
+        const selectedConfigDetails = allConfigs.filter(config => 
+            selectedConfigs.includes(config.id)
+        );
+        
+        // 显示批量同步对话框
+        const syncDialog = document.getElementById('syncDialog');
+        const selectedRecordsCount = document.getElementById('selectedRecordsCount');
+        const selectedConfigNames = document.getElementById('selectedConfigNames');
+        const confirmSyncBtn = document.getElementById('confirmSyncBtn');
+        
+        // 更新对话框内容
+        selectedRecordsCount.textContent = `共 ${selectedConfigDetails.length} 条`;
+        selectedConfigNames.textContent = selectedConfigDetails.map(c => c.name).join(', ');
+        
+        // 保存选中的配置ID到对话框元素中，供确认按钮使用
+        confirmSyncBtn.setAttribute('data-selected-configs', JSON.stringify(selectedConfigs));
+        
+        // 绑定对话框事件监听器，指定配置类型为modelConfig
+        bindSyncDialogEvents(null, 'modelConfig');
+        
+        // 显示对话框
+        syncDialog.style.display = 'block';
+        
+    } catch (error) {
+        console.error('批量同步大模型配置失败:', error);
+        showAlert('批量同步大模型配置失败: ' + error.message, 'error');
+    }
+}
+
+// 批量同步表格配置
 async function batchSyncTableConfigs() {
     // 使用更新的方式获取选中配置
     const checkboxes = document.querySelectorAll('#tableConfigsList .table-config-checkbox');
@@ -1823,6 +1917,8 @@ async function batchSyncTableConfigs() {
 async function startSync(configId) {
     const targetConfigId = document.getElementById('targetConfigSelect').value;
     const targetTableName = document.getElementById('targetTableInput').value;
+    const syncBtn = document.getElementById('confirmSyncBtn');
+    const configType = syncBtn.getAttribute('data-config-type') || 'tableConfig';
     
     if (!targetConfigId) {
         showAlert('请选择同步目的链接', 'warning');
@@ -1835,9 +1931,9 @@ async function startSync(configId) {
     }
     
     try {
-        // 获取源配置和目标配置信息
-        const configs = await storageService.loadData('tableConfigs') || [];
-        const targetConfig = configs.find(c => c.id === targetConfigId);
+        // 获取目标配置信息
+        const targetConfigs = await storageService.loadData('tableConfigs') || [];
+        const targetConfig = targetConfigs.find(c => c.id === targetConfigId);
         
         if (!targetConfig) {
             showAlert('目标配置信息不存在', 'error');
@@ -1845,7 +1941,6 @@ async function startSync(configId) {
         }
         
         // 显示加载状态
-        const syncBtn = document.getElementById('confirmSyncBtn');
         const loading = showLoading(syncBtn, '同步中...');
         
         try {
@@ -1858,35 +1953,73 @@ async function startSync(configId) {
             if (selectedConfigsJson) {
                 // 批量同步逻辑
                 const selectedConfigs = JSON.parse(selectedConfigsJson);
-                const sourceConfigs = configs.filter(c => selectedConfigs.includes(c.id));
+                
+                // 根据配置类型加载源配置
+                let sourceConfigs = [];
+                if (configType === 'modelConfig') {
+                    const modelConfigs = await storageService.loadData('modelConfigs') || [];
+                    sourceConfigs = modelConfigs.filter(c => selectedConfigs.includes(c.id));
+                } else {
+                    const tableConfigs = await storageService.loadData('tableConfigs') || [];
+                    sourceConfigs = tableConfigs.filter(c => selectedConfigs.includes(c.id));
+                }
                 
                 console.log(`开始批量同步配置，共 ${sourceConfigs.length} 条`, {
                     targetConfig: targetConfig.name,
-                    targetTableName: targetTableName
+                    targetTableName: targetTableName,
+                    configType: configType
                 });
                 
                 // 准备批量同步数据
-                const syncDataArray = sourceConfigs.map(sourceConfig => ({
-                    id: sourceConfig.id,
-                    name: sourceConfig.name,
-                    type: 'tableConfig',
-                    platform: sourceConfig.platform,
-                    appId: sourceConfig.appId,
-                    appSecret: sourceConfig.appSecret,
-                    tableToken: targetConfig.tableToken || targetConfig.tableId,
-                    tableId: targetTableName,
-                    sourceTableId: sourceConfig.tableId,
-                    createdAt: sourceConfig.createdAt,
-                    updatedAt: sourceConfig.updatedAt,
-                    metadata: {
-                        source: 'FlowFocus',
-                        syncType: 'batchConfigSync',
-                        sourceConfigId: sourceConfig.id,
-                        targetConfigId: targetConfig.id,
-                        targetTableName: targetTableName,
-                        syncTime: new Date().toISOString()
+                const syncDataArray = sourceConfigs.map(sourceConfig => {
+                    if (configType === 'modelConfig') {
+                        // 大模型配置同步数据
+                        return {
+                            id: sourceConfig.id,
+                            name: sourceConfig.name,
+                            type: 'modelConfig',
+                            modelType: sourceConfig.modelType || sourceConfig.type,
+                            apiKey: sourceConfig.apiKey,
+                            baseUrl: sourceConfig.baseUrl,
+                            modelEndpoint: sourceConfig.modelEndpoint,
+                            tableToken: targetConfig.tableToken || targetConfig.tableId,
+                            tableId: targetTableName,
+                            createdAt: sourceConfig.createdAt,
+                            updatedAt: sourceConfig.updatedAt,
+                            metadata: {
+                                source: 'FlowFocus',
+                                syncType: 'batchModelConfigSync',
+                                sourceConfigId: sourceConfig.id,
+                                targetConfigId: targetConfig.id,
+                                targetTableName: targetTableName,
+                                syncTime: new Date().toISOString()
+                            }
+                        };
+                    } else {
+                        // 多维表格配置同步数据
+                        return {
+                            id: sourceConfig.id,
+                            name: sourceConfig.name,
+                            type: 'tableConfig',
+                            platform: sourceConfig.platform,
+                            appId: sourceConfig.appId,
+                            appSecret: sourceConfig.appSecret,
+                            tableToken: targetConfig.tableToken || targetConfig.tableId,
+                            tableId: targetTableName,
+                            sourceTableId: sourceConfig.tableId,
+                            createdAt: sourceConfig.createdAt,
+                            updatedAt: sourceConfig.updatedAt,
+                            metadata: {
+                                source: 'FlowFocus',
+                                syncType: 'batchConfigSync',
+                                sourceConfigId: sourceConfig.id,
+                                targetConfigId: targetConfig.id,
+                                targetTableName: targetTableName,
+                                syncTime: new Date().toISOString()
+                            }
+                        };
                     }
-                }));
+                });
                 
                 // 执行批量同步
                 const syncResults = [];
@@ -1950,7 +2083,15 @@ async function startSync(configId) {
                 
             } else {
                 // 单条同步逻辑
-                const sourceConfig = configs.find(c => c.id === configId);
+                let sourceConfig = null;
+                
+                if (configType === 'modelConfig') {
+                    const modelConfigs = await storageService.loadData('modelConfigs') || [];
+                    sourceConfig = modelConfigs.find(c => c.id === configId);
+                } else {
+                    const tableConfigs = await storageService.loadData('tableConfigs') || [];
+                    sourceConfig = tableConfigs.find(c => c.id === configId);
+                }
                 
                 if (!sourceConfig) {
                     showAlert('源配置信息不存在', 'error');
@@ -1960,31 +2101,59 @@ async function startSync(configId) {
                 console.log('开始同步配置:', {
                     sourceConfig: sourceConfig.name,
                     targetConfig: targetConfig.name,
-                    targetTableName: targetTableName
+                    targetTableName: targetTableName,
+                    configType: configType
                 });
                 
                 // 准备同步数据
-                const syncData = {
-                    id: sourceConfig.id,
-                    name: sourceConfig.name,
-                    type: 'tableConfig',
-                    platform: sourceConfig.platform,
-                    appId: sourceConfig.appId,
-                    appSecret: sourceConfig.appSecret,
-                    tableToken: targetConfig.tableToken || targetConfig.tableId,
-                    tableId: targetTableName,
-                    sourceTableId: sourceConfig.tableId,
-                    createdAt: sourceConfig.createdAt,
-                    updatedAt: sourceConfig.updatedAt,
-                    metadata: {
-                        source: 'FlowFocus',
-                        syncType: 'configSync',
-                        sourceConfigId: sourceConfig.id,
-                        targetConfigId: targetConfig.id,
-                        targetTableName: targetTableName,
-                        syncTime: new Date().toISOString()
-                    }
-                };
+                let syncData = null;
+                if (configType === 'modelConfig') {
+                    // 大模型配置同步数据
+                    syncData = {
+                        id: sourceConfig.id,
+                        name: sourceConfig.name,
+                        type: 'modelConfig',
+                        modelType: sourceConfig.modelType || sourceConfig.type,
+                        apiKey: sourceConfig.apiKey,
+                        baseUrl: sourceConfig.baseUrl,
+                        modelEndpoint: sourceConfig.modelEndpoint,
+                        tableToken: targetConfig.tableToken || targetConfig.tableId,
+                        tableId: targetTableName,
+                        createdAt: sourceConfig.createdAt,
+                        updatedAt: sourceConfig.updatedAt,
+                        metadata: {
+                            source: 'FlowFocus',
+                            syncType: 'modelConfigSync',
+                            sourceConfigId: sourceConfig.id,
+                            targetConfigId: targetConfig.id,
+                            targetTableName: targetTableName,
+                            syncTime: new Date().toISOString()
+                        }
+                    };
+                } else {
+                    // 多维表格配置同步数据
+                    syncData = {
+                        id: sourceConfig.id,
+                        name: sourceConfig.name,
+                        type: 'tableConfig',
+                        platform: sourceConfig.platform,
+                        appId: sourceConfig.appId,
+                        appSecret: sourceConfig.appSecret,
+                        tableToken: targetConfig.tableToken || targetConfig.tableId,
+                        tableId: targetTableName,
+                        sourceTableId: sourceConfig.tableId,
+                        createdAt: sourceConfig.createdAt,
+                        updatedAt: sourceConfig.updatedAt,
+                        metadata: {
+                            source: 'FlowFocus',
+                            syncType: 'configSync',
+                            sourceConfigId: sourceConfig.id,
+                            targetConfigId: targetConfig.id,
+                            targetTableName: targetTableName,
+                            syncTime: new Date().toISOString()
+                        }
+                    };
+                }
                 
                 // 执行同步
                 const syncResult = await syncService.syncSingle(syncData, targetConfig);
@@ -1992,7 +2161,8 @@ async function startSync(configId) {
                 console.log('配置同步结果:', syncResult);
                 
                 // 显示同步成功信息
-                showAlert(`配置同步成功: ${sourceConfig.name} → ${targetConfig.name} (表格: ${targetTableName})`, 'success');
+                const configTypeName = configType === 'modelConfig' ? '大模型' : '多维表格';
+                showAlert(`${configTypeName}配置同步成功: ${sourceConfig.name} → ${targetConfig.name} (表格: ${targetTableName})`, 'success');
             }
             
             // 关闭对话框

@@ -244,11 +244,10 @@ class FeishuAdapter extends BaseAdapter {
     try {
       // 构建URL - 直接使用传入的表格信息，修复URL构建错误
       // 重要：直接使用data参数中的tableToken作为应用ID，使用data参数中的tableId作为表格ID
-      const appToken = data.tableToken; // 直接使用传入的应用token
-      const tableId = data.tableId; // 直接使用传入的表格ID
+      const appToken = data.tableToken;
+      const tableId = data.tableId;
       
       // 重要修复：更新实例的appId和appSecret，确保getAuthHeaders能获取正确的认证信息
-      // 这解决了请求头中的令牌可能无效以及请求参数中显示"未设置"的问题
       if (data.appId && data.appSecret) {
         this.appId = data.appId;
         this.appSecret = data.appSecret;
@@ -260,44 +259,57 @@ class FeishuAdapter extends BaseAdapter {
       
       console.log('准备创建飞书记录:', { url: url });
       
-      // 方案3：使用测试成功的数据集合字段格式
-      // 构建配置数据
-      // 使用更新后的实例属性来填充App ID和App Secret
-      const configData = {
-        '配置名称': data.name || '未命名配置',
-        'App ID': this.appId || '未设置',
-        'App Secret': this.appSecret ? '已设置 (加密)' : '未设置',
-        '多维表格token': appToken || '未设置',
-        '多维表格ID': tableId || '未设置',
-        '创建时间': new Date().toISOString()
-      };
+      // 使用dataMapper中已经准备好的"数据集合"字段
+      // 为大模型配置创建请求体
+      let requestData;
       
-      console.log('构建的配置数据:', {
-        '配置名称': configData['配置名称'],
-        'App ID': this.appId ? '已设置' : '未设置',
-        '多维表格token': appToken,
-        '多维表格ID': tableId
-      });
-      
-      // 使用测试格式3：将所有配置数据整合成JSON字符串放入"数据集合"字段
-      const requestData = {
-        fields: {
-          '数据集合': JSON.stringify({
-            '配置名称': configData['配置名称'],
-            'App ID': this.appId || '未设置',
-            'App Secret': this.appSecret ? '已设置 (加密)' : '未设置',
-            '多维表格token': configData['多维表格token'],
-            '多维表格ID': configData['多维表格ID'],
-            '创建时间': configData['创建时间'] ? DateUtils.format(new Date(configData['创建时间']), 'YYYY-MM-DD HH:mm:ss') : DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
-            '更新时间': DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
-            '状态': '正常'
-          })
-        }
-      };
+      if (data.type === 'modelConfig' && data['数据集合']) {
+        // 如果是大模型配置且已有"数据集合"字段，直接使用
+        console.log('使用现有"数据集合"字段');
+        requestData = {
+          fields: {
+            '数据集合': data['数据集合']
+          }
+        };
+      } else {
+        // 其他类型或没有"数据集合"字段时的默认处理
+        // 构建配置数据
+        const configData = {
+          '配置名称': data.name || '未命名配置',
+          'App ID': this.appId || '未设置',
+          'App Secret': this.appSecret ? '已设置 (加密)' : '未设置',
+          '多维表格token': appToken || '未设置',
+          '多维表格ID': tableId || '未设置',
+          '创建时间': new Date().toISOString()
+        };
+        
+        console.log('构建的配置数据:', {
+          '配置名称': configData['配置名称'],
+          'App ID': this.appId ? '已设置' : '未设置',
+          '多维表格token': appToken,
+          '多维表格ID': tableId
+        });
+        
+        // 将所有配置数据整合成JSON字符串放入"数据集合"字段
+        requestData = {
+          fields: {
+            '数据集合': JSON.stringify({
+              '配置名称': configData['配置名称'],
+              'App ID': this.appId || '未设置',
+              'App Secret': this.appSecret ? '已设置 (加密)' : '未设置',
+              '多维表格token': configData['多维表格token'],
+              '多维表格ID': configData['多维表格ID'],
+              '创建时间': configData['创建时间'] ? DateUtils.format(new Date(configData['创建时间']), 'YYYY-MM-DD HH:mm:ss') : DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+              '更新时间': DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+              '状态': '正常'
+            })
+          }
+        };
+      }
       
       console.log('构建的请求体 - 数据集合格式:', requestData);
 
-      // 构建完整的请求选项，提前序列化body（与测试成功的代码保持一致）
+      // 构建完整的请求选项，提前序列化body
       const authHeaders = await this.getAuthHeaders();
       const requestOptions = {
         method: 'POST',
@@ -305,7 +317,7 @@ class FeishuAdapter extends BaseAdapter {
           'Content-Type': 'application/json; charset=utf-8',
           ...authHeaders
         },
-        body: JSON.stringify(requestData) // 提前序列化，与测试成功的代码保持一致
+        body: JSON.stringify(requestData) // 提前序列化
       };
       
       console.log('完整请求选项:', {
@@ -398,6 +410,7 @@ class FeishuAdapter extends BaseAdapter {
       
       const fullUrl = queryParams.toString() ? `${url}?${queryParams}` : url;
       
+
       const headers = await this.getAuthHeaders();
       
       const response = await this.makeRequest(fullUrl, {
