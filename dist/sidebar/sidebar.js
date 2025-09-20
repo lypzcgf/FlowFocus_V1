@@ -218,6 +218,12 @@ function initTableConfigTab() {
     selectAllTableConfigs.addEventListener('change', toggleAllTableConfigs);
     deleteSelectedTableConfigsBtn.addEventListener('click', deleteSelectedTableConfigs);
     
+    // 批量同步按钮事件监听
+    const batchSyncTableConfigsBtn = document.getElementById('batchSyncTableConfigsBtn');
+    if (batchSyncTableConfigsBtn) {
+        batchSyncTableConfigsBtn.addEventListener('click', batchSyncTableConfigs);
+    }
+    
     // 加载已保存的配置
     loadTableConfigs();
 }
@@ -1701,7 +1707,14 @@ function bindSyncDialogEvents(configId) {
     
     // 取消按钮
     document.getElementById('cancelSyncBtn').onclick = function() {
-        document.getElementById('syncDialog').style.display = 'none';
+        const syncDialog = document.getElementById('syncDialog');
+        const confirmSyncBtn = document.getElementById('confirmSyncBtn');
+        
+        // 清除批量同步标记
+        confirmSyncBtn.removeAttribute('data-selected-configs');
+        
+        // 关闭对话框
+        syncDialog.style.display = 'none';
     };
     
     // 确定按钮
@@ -1756,7 +1769,57 @@ async function loadTargetTables(targetConfigId) {
     }
 }
 
-// 开始同步
+// 批量同步配置
+async function batchSyncTableConfigs() {
+    // 使用更新的方式获取选中配置
+    const checkboxes = document.querySelectorAll('#tableConfigsList .table-config-checkbox');
+    const selectedConfigs = [];
+    
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            const configId = checkbox.getAttribute('data-id');
+            selectedConfigs.push(configId);
+        }
+    });
+    
+    if (selectedConfigs.length === 0) {
+        showAlert('请先选择要同步的配置', 'warning');
+        return;
+    }
+    
+    try {
+        // 获取选中的配置详情
+        const allConfigs = await storageService.loadData('tableConfigs') || [];
+        const selectedConfigDetails = allConfigs.filter(config => 
+            selectedConfigs.includes(config.id)
+        );
+        
+        // 显示批量同步对话框
+        const syncDialog = document.getElementById('syncDialog');
+        const selectedRecordsCount = document.getElementById('selectedRecordsCount');
+        const selectedConfigNames = document.getElementById('selectedConfigNames');
+        const confirmSyncBtn = document.getElementById('confirmSyncBtn');
+        
+        // 更新对话框内容
+        selectedRecordsCount.textContent = `共 ${selectedConfigDetails.length} 条`;
+        selectedConfigNames.textContent = selectedConfigDetails.map(c => c.name).join(', ');
+        
+        // 保存选中的配置ID到对话框元素中，供确认按钮使用
+        confirmSyncBtn.setAttribute('data-selected-configs', JSON.stringify(selectedConfigs));
+        
+        // 绑定对话框事件监听器
+        bindSyncDialogEvents();
+        
+        // 显示对话框
+        syncDialog.style.display = 'block';
+        
+    } catch (error) {
+        console.error('批量同步配置失败:', error);
+        showAlert('批量同步配置失败: ' + error.message, 'error');
+    }
+}
+
+// 开始同步 - 支持单条和批量同步
 async function startSync(configId) {
     const targetConfigId = document.getElementById('targetConfigSelect').value;
     const targetTableName = document.getElementById('targetTableInput').value;
@@ -1774,11 +1837,10 @@ async function startSync(configId) {
     try {
         // 获取源配置和目标配置信息
         const configs = await storageService.loadData('tableConfigs') || [];
-        const sourceConfig = configs.find(c => c.id === configId);
         const targetConfig = configs.find(c => c.id === targetConfigId);
         
-        if (!sourceConfig || !targetConfig) {
-            showAlert('配置信息不存在', 'error');
+        if (!targetConfig) {
+            showAlert('目标配置信息不存在', 'error');
             return;
         }
         
@@ -1787,48 +1849,151 @@ async function startSync(configId) {
         const loading = showLoading(syncBtn, '同步中...');
         
         try {
-            // 调用实际的同步服务
-            console.log('开始实际同步配置:', {
-                sourceConfig: sourceConfig.name,
-                targetConfig: targetConfig.name,
-                targetTableName: targetTableName
-            });
-            
             // 创建同步服务实例
             const syncService = new SyncService();
             
-            // 准备同步数据 - 将源配置作为记录数据
-            const syncData = {
-                id: sourceConfig.id,
-                name: sourceConfig.name,
-                type: 'tableConfig',
-                platform: sourceConfig.platform,
-                appId: sourceConfig.appId,
-                appSecret: sourceConfig.appSecret,
-                tableToken: targetConfig.tableToken || targetConfig.tableId,  // 使用目标配置的token
-                tableId: targetTableName,  // 使用用户输入的目标表格ID，这是关键修复
-                sourceTableId: sourceConfig.tableId,  // 保留原始表格ID作为参考
-                createdAt: sourceConfig.createdAt,
-                updatedAt: sourceConfig.updatedAt,
-                metadata: {
-                    source: 'FlowFocus',
-                    syncType: 'configSync',
-                    sourceConfigId: sourceConfig.id,
-                    targetConfigId: targetConfig.id,
-                    targetTableName: targetTableName,
-                    syncTime: new Date().toISOString()
+            // 检查是否是批量同步
+            const selectedConfigsJson = syncBtn.getAttribute('data-selected-configs');
+            
+            if (selectedConfigsJson) {
+                // 批量同步逻辑
+                const selectedConfigs = JSON.parse(selectedConfigsJson);
+                const sourceConfigs = configs.filter(c => selectedConfigs.includes(c.id));
+                
+                console.log(`开始批量同步配置，共 ${sourceConfigs.length} 条`, {
+                    targetConfig: targetConfig.name,
+                    targetTableName: targetTableName
+                });
+                
+                // 准备批量同步数据
+                const syncDataArray = sourceConfigs.map(sourceConfig => ({
+                    id: sourceConfig.id,
+                    name: sourceConfig.name,
+                    type: 'tableConfig',
+                    platform: sourceConfig.platform,
+                    appId: sourceConfig.appId,
+                    appSecret: sourceConfig.appSecret,
+                    tableToken: targetConfig.tableToken || targetConfig.tableId,
+                    tableId: targetTableName,
+                    sourceTableId: sourceConfig.tableId,
+                    createdAt: sourceConfig.createdAt,
+                    updatedAt: sourceConfig.updatedAt,
+                    metadata: {
+                        source: 'FlowFocus',
+                        syncType: 'batchConfigSync',
+                        sourceConfigId: sourceConfig.id,
+                        targetConfigId: targetConfig.id,
+                        targetTableName: targetTableName,
+                        syncTime: new Date().toISOString()
+                    }
+                }));
+                
+                // 执行批量同步
+                const syncResults = [];
+                let successCount = 0;
+                let failCount = 0;
+                
+                // 在循环外部创建表格服务实例和适配器，以复用访问令牌
+                const firstSyncData = syncDataArray[0];
+                let tableService = null;
+                
+                try {
+                    // 创建共享的表格服务实例
+                    tableService = new TableService({
+                        ...targetConfig,
+                        appId: firstSyncData.appId || targetConfig.appId,
+                        appSecret: firstSyncData.appSecret || targetConfig.appSecret
+                    });
+                    
+                    // 预获取访问令牌
+                    if (tableService.adapter && typeof tableService.adapter.getAccessToken === 'function') {
+                        console.log('预获取访问令牌用于批量同步复用...');
+                        await tableService.adapter.getAccessToken();
+                        console.log('访问令牌预获取成功，将在所有同步请求中复用');
+                    }
+                } catch (tokenError) {
+                    console.warn('预获取访问令牌失败，将在每个配置同步时单独获取:', tokenError.message);
                 }
-            };
-            
-            console.log('同步数据准备完成:', syncData);
-            
-            // 执行同步
-            const syncResult = await syncService.syncSingle(syncData, targetConfig);
-            
-            console.log('配置同步结果:', syncResult);
-            
-            // 显示同步成功信息
-            showAlert(`配置同步成功: ${sourceConfig.name} → ${targetConfig.name} (表格: ${targetTableName})`, 'success');
+                
+                // 执行批量同步，使用同一个表格服务实例复用令牌
+                for (let i = 0; i < syncDataArray.length; i++) {
+                    const syncData = syncDataArray[i];
+                    const sourceConfig = sourceConfigs[i];
+                    
+                    try {
+                        // 使用同一个表格服务实例执行同步，注意参数顺序
+                        const result = await syncService.syncSingle(syncData, targetConfig, {}, tableService);
+                        syncResults.push({ id: sourceConfig.id, name: sourceConfig.name, success: true });
+                        successCount++;
+                        console.log(`配置 ${sourceConfig.name} 同步成功`, result);
+                    } catch (error) {
+                        syncResults.push({ id: sourceConfig.id, name: sourceConfig.name, success: false, error: error.message });
+                        failCount++;
+                        console.error(`配置 ${sourceConfig.name} 同步失败`, error);
+                    }
+                    
+                    // 更新进度显示
+                    syncBtn.textContent = `同步中... (${i + 1}/${syncDataArray.length})`;
+                }
+                
+                // 显示批量同步结果
+                let resultMessage = `批量同步完成: 成功 ${successCount} 条, 失败 ${failCount} 条`;
+                if (failCount > 0) {
+                    const failedConfigs = syncResults.filter(r => !r.success).map(r => r.name).join(', ');
+                    resultMessage += `\n\n失败的配置: ${failedConfigs}`;
+                }
+                
+                showAlert(resultMessage, failCount > 0 ? 'warning' : 'success');
+                
+                // 清除批量同步标记
+                syncBtn.removeAttribute('data-selected-configs');
+                
+            } else {
+                // 单条同步逻辑
+                const sourceConfig = configs.find(c => c.id === configId);
+                
+                if (!sourceConfig) {
+                    showAlert('源配置信息不存在', 'error');
+                    return;
+                }
+                
+                console.log('开始同步配置:', {
+                    sourceConfig: sourceConfig.name,
+                    targetConfig: targetConfig.name,
+                    targetTableName: targetTableName
+                });
+                
+                // 准备同步数据
+                const syncData = {
+                    id: sourceConfig.id,
+                    name: sourceConfig.name,
+                    type: 'tableConfig',
+                    platform: sourceConfig.platform,
+                    appId: sourceConfig.appId,
+                    appSecret: sourceConfig.appSecret,
+                    tableToken: targetConfig.tableToken || targetConfig.tableId,
+                    tableId: targetTableName,
+                    sourceTableId: sourceConfig.tableId,
+                    createdAt: sourceConfig.createdAt,
+                    updatedAt: sourceConfig.updatedAt,
+                    metadata: {
+                        source: 'FlowFocus',
+                        syncType: 'configSync',
+                        sourceConfigId: sourceConfig.id,
+                        targetConfigId: targetConfig.id,
+                        targetTableName: targetTableName,
+                        syncTime: new Date().toISOString()
+                    }
+                };
+                
+                // 执行同步
+                const syncResult = await syncService.syncSingle(syncData, targetConfig);
+                
+                console.log('配置同步结果:', syncResult);
+                
+                // 显示同步成功信息
+                showAlert(`配置同步成功: ${sourceConfig.name} → ${targetConfig.name} (表格: ${targetTableName})`, 'success');
+            }
             
             // 关闭对话框
             document.getElementById('syncDialog').style.display = 'none';
@@ -1837,6 +2002,8 @@ async function startSync(configId) {
             console.error('同步失败:', error);
             showAlert('同步失败: ' + error.message, 'error');
         } finally {
+            // 恢复按钮状态
+            syncBtn.textContent = '确定';
             loading.hide();
         }
         

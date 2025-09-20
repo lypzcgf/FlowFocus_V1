@@ -77,9 +77,10 @@ class SyncService {
    * @param {Object} record - 记录数据
    * @param {Object} targetConfig - 目标配置
    * @param {Object} options - 同步选项
+   * @param {Object} sharedTableService - 可选的共享表格服务实例（用于批量同步复用）
    * @returns {Promise<Object>} 同步结果
    */
-  async syncSingle(record, targetConfig, options = {}) {
+  async syncSingle(record, targetConfig, options = {}, sharedTableService = null) {
     const syncId = this.generateSyncId();
     const startTime = Date.now();
     const platform = targetConfig.platform;
@@ -95,8 +96,19 @@ class SyncService {
       // 数据映射
       const mappedData = DataMapper.serializeForTable(record, record.type);
       
-      // 创建表格服务实例
-      const tableService = new TableService(targetConfig);
+      // 使用共享表格服务实例或创建新实例
+      // 重要：将源记录中的认证信息也传递给表格服务，确保在批量同步时能正确获取访问令牌
+      let tableService;
+      if (sharedTableService) {
+        tableService = sharedTableService;
+      } else {
+        const tableServiceConfig = {
+          ...targetConfig,
+          appId: record.appId || targetConfig.appId,
+          appSecret: record.appSecret || targetConfig.appSecret
+        };
+        tableService = new TableService(tableServiceConfig);
+      }
       
       // 执行同步（带重试机制）
       const result = await this.executeWithRetry(

@@ -19,6 +19,7 @@ class FeishuAdapter extends BaseAdapter {
     this.authUrl = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
     this.accessToken = null;
     this.tokenExpiry = null;
+    this.lastAuthParams = null; // 新增：存储上一次获取令牌的参数
     this.rateLimitRemaining = 1000;
     this.rateLimitReset = null;
     // 添加调试信息，帮助排查问题
@@ -135,9 +136,23 @@ class FeishuAdapter extends BaseAdapter {
    * @returns {Promise<string>} 访问令牌
    */
   async getAccessToken() {
-    // 检查现有令牌是否有效
-    if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+    // 检查现有令牌是否有效且配置参数没有变化
+    if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry && 
+        this.lastAuthParams && 
+        this.lastAuthParams.appId === this.appId && 
+        this.lastAuthParams.appSecret === this.appSecret) {
+      console.log('复用现有访问令牌，参数未变化');
       return this.accessToken;
+    }
+    
+    // 参数变化或令牌过期，准备获取新令牌
+    if (this.accessToken && this.tokenExpiry) {
+      console.log('准备获取新访问令牌', {
+        '参数变化': (!this.lastAuthParams || 
+                      this.lastAuthParams.appId !== this.appId || 
+                      this.lastAuthParams.appSecret !== this.appSecret),
+        '令牌过期': Date.now() >= this.tokenExpiry
+      });
     }
 
     try {
@@ -160,6 +175,15 @@ class FeishuAdapter extends BaseAdapter {
 
       this.accessToken = data.tenant_access_token;
       this.tokenExpiry = Date.now() + (data.expire - 300) * 1000; // 提前5分钟过期
+      
+      // 记录当前用于获取令牌的参数
+      this.lastAuthParams = {
+        appId: this.appId,
+        appSecret: this.appSecret,
+        tableToken: this.tableToken
+      };
+      
+      console.log('成功获取新访问令牌，有效期至:', new Date(this.tokenExpiry).toLocaleString());
       
       return this.accessToken;
     } catch (error) {
