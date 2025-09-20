@@ -12,6 +12,7 @@ class DataMapper {
    */
   static serializeForTable(localData, dataType) {
     try {
+      // 创建基础序列化数据对象
       const serializedData = {
         id: localData.id || this.generateId(),
         type: dataType,
@@ -26,6 +27,15 @@ class DataMapper {
           schema: this.getDataSchema(dataType)
         }
       };
+      
+      // 保留必要的表格信息字段，确保在飞书适配器中能正确构建URL
+      // 这是修复app_token和table_id变为undefined问题的关键
+      if (localData.tableToken) {
+        serializedData.tableToken = localData.tableToken;
+      }
+      if (localData.tableId) {
+        serializedData.tableId = localData.tableId;
+      }
       
       // 根据数据类型添加特定字段
       switch (dataType) {
@@ -886,9 +896,15 @@ class DataMapper {
   }
 }
 
-// 导出服务类
+// 导出服务类 - 支持ES模块和CommonJS
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = DataMapper;
+  module.exports.default = DataMapper; // 兼容ES模块默认导入
+} else if (typeof define === 'function' && define.amd) {
+  define([], function() { return DataMapper; });
 } else {
   window.DataMapper = DataMapper;
 }
+
+// ES模块默认导出
+export default DataMapper;

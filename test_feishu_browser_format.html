@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞书API请求体格式测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1 {
+            color: #1890ff;
+            margin-bottom: 30px;
+        }
+        .config-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .config-input {
+            margin-bottom: 15px;
+        }
+        .config-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .config-input input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .button-group {
+            margin-bottom: 30px;
+        }
+        button {
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #40a9ff;
+        }
+        .logs-section {
+            background: #000;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .test-result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .error {
+            background-color: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+    </style>
+</head>
+<body>
+    <h1>飞书API请求体格式测试工具</h1>
+    
+    <div class="config-section">
+        <h2>配置信息</h2>
+        <div class="config-input">
+            <label for="appId">App ID:</label>
+            <input type="text" id="appId" placeholder="请输入飞书App ID">
+        </div>
+        <div class="config-input">
+            <label for="appSecret">App Secret:</label>
+            <input type="text" id="appSecret" placeholder="请输入飞书App Secret">
+        </div>
+        <div class="config-input">
+            <label for="tableToken">多维表格Token:</label>
+            <input type="text" id="tableToken" placeholder="请输入多维表格Token">
+        </div>
+        <div class="config-input">
+            <label for="tableId">多维表格ID:</label>
+            <input type="text" id="tableId" placeholder="请输入多维表格ID">
+        </div>
+    </div>
+    
+    <div class="button-group">
+        <button id="testAllBtn">运行所有测试</button>
+        <button id="testFormat1Btn">测试格式1 (简单)</button>
+        <button id="testFormat2Btn">测试格式2 (详细)</button>
+        <button id="testFormat3Btn">测试格式3 (数据集合)</button>
+        <button id="clearLogsBtn">清空日志</button>
+    </div>
+    
+    <h2>测试日志</h2>
+    <div class="logs-section" id="logs"></div>
+    
+    <script>
+        // 配置DOM元素
+        const appIdInput = document.getElementById('appId');
+        const appSecretInput = document.getElementById('appSecret');
+        const tableTokenInput = document.getElementById('tableToken');
+        const tableIdInput = document.getElementById('tableId');
+        const logsElement = document.getElementById('logs');
+        
+        // 日志函数
+        function log(message) {
+            const logEntry = document.createElement('div');
+            logEntry.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            logsElement.appendChild(logEntry);
+            logsElement.scrollTop = logsElement.scrollHeight;
+            console.log(message);
+        }
+        
+        // 清空日志
+        document.getElementById('clearLogsBtn').addEventListener('click', () => {
+            logsElement.innerHTML = '';
+            log('日志已清空');
+        });
+        
+        // 获取配置
+        function getConfig() {
+            return {
+                appId: appIdInput.value.trim(),
+                appSecret: appSecretInput.value.trim(),
+                tableToken: tableTokenInput.value.trim(),
+                tableId: tableIdInput.value.trim()
+            };
+        }
+        
+        // 验证配置
+        function validateConfig(config) {
+            if (!config.appId) {
+                log('错误: App ID不能为空');
+                return false;
+            }
+            if (!config.appSecret) {
+                log('错误: App Secret不能为空');
+                return false;
+            }
+            if (!config.tableToken) {
+                log('错误: 多维表格Token不能为空');
+                return false;
+            }
+            if (!config.tableId) {
+                log('错误: 多维表格ID不能为空');
+                return false;
+            }
+            return true;
+        }
+        
+        // 获取访问令牌
+        async function getAccessToken(appId, appSecret) {
+            try {
+                log('正在获取访问令牌...');
+                const url = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    body: JSON.stringify({
+                        app_id: appId,
+                        app_secret: appSecret
+                    })
+                });
+                
+                const data = await response.json();
+                log(`获取访问令牌响应: 状态码=${response.status}, code=${data.code}, msg=${data.msg}`);
+                
+                if (data.code !== 0 || !data.tenant_access_token) {
+                    log(`错误: 获取访问令牌失败 - ${data.msg || '未知错误'}`);
+                    return null;
+                }
+                
+                log('访问令牌获取成功');
+                return data.tenant_access_token;
+            } catch (error) {
+                log(`错误: 获取访问令牌异常 - ${error.message}`);
+                return null;
+            }
+        }
+        
+        // 测试格式1: 最简单的请求体格式
+        async function testFormat1(config, accessToken) {
+            try {
+                log('\n=== 测试格式1: 最简单的请求体格式 ===');
+                
+                const url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${config.tableToken}/tables/${config.tableId}/records`;
+                
+                // 最简单的请求体
+                const requestData = {
+                    fields: {
+                        '测试字段': '测试值'
+                    }
+                };
+                
+                log(`请求URL: ${url}`);
+                log(`请求体: ${JSON.stringify(requestData, null, 2)}`);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const data = await response.json();
+                log(`响应状态码: ${response.status}`);
+                log(`响应内容: ${JSON.stringify(data, null, 2)}`);
+                
+                if (response.status === 200 && data.code === 0) {
+                    log('✅ 格式1测试成功');
+                } else {
+                    log('❌ 格式1测试失败');
+                }
+                
+            } catch (error) {
+                log(`错误: 格式1测试异常 - ${error.message}`);
+            }
+        }
+        
+        // 测试格式2: 详细的请求体格式
+        async function testFormat2(config, accessToken) {
+            try {
+                log('\n=== 测试格式2: 详细的请求体格式 ===');
+                
+                const url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${config.tableToken}/tables/${config.tableId}/records`;
+                
+                // 详细的请求体
+                const requestData = {
+                    fields: {
+                        '配置名称': '测试配置',
+                        'App ID': config.appId || '未设置',
+                        '创建时间': new Date().toISOString()
+                    }
+                };
+                
+                log(`请求URL: ${url}`);
+                log(`请求体: ${JSON.stringify(requestData, null, 2)}`);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const data = await response.json();
+                log(`响应状态码: ${response.status}`);
+                log(`响应内容: ${JSON.stringify(data, null, 2)}`);
+                
+                if (response.status === 200 && data.code === 0) {
+                    log('✅ 格式2测试成功');
+                } else {
+                    log('❌ 格式2测试失败');
+                }
+                
+            } catch (error) {
+                log(`错误: 格式2测试异常 - ${error.message}`);
+            }
+        }
+        
+        // 测试格式3: 用户要求的数据集合字段格式
+        async function testFormat3(config, accessToken) {
+            try {
+                log('\n=== 测试格式3: 用户要求的数据集合字段格式 ===');
+                
+                const url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${config.tableToken}/tables/${config.tableId}/records`;
+                
+                // 构建配置数据
+                const configData = {
+                    '配置名称': '测试配置',
+                    'App ID': config.appId || '未设置',
+                    'App Secret': config.appSecret ? '已设置 (加密)' : '未设置',
+                    '多维表格token': config.tableToken || '未设置',
+                    '多维表格ID': config.tableId || '未设置',
+                    '创建时间': new Date().toISOString()
+                };
+                
+                // 构建请求体
+                const requestData = {
+                    fields: {
+                        '数据集合': JSON.stringify(configData)
+                    }
+                };
+                
+                log(`请求URL: ${url}`);
+                log(`请求体: ${JSON.stringify(requestData, null, 2)}`);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const data = await response.json();
+                log(`响应状态码: ${response.status}`);
+                log(`响应内容: ${JSON.stringify(data, null, 2)}`);
+                
+                if (response.status === 200 && data.code === 0) {
+                    log('✅ 格式3测试成功');
+                } else {
+                    log('❌ 格式3测试失败');
+                }
+                
+            } catch (error) {
+                log(`错误: 格式3测试异常 - ${error.message}`);
+            }
+        }
+        
+        // 运行所有测试
+        async function runAllTests() {
+            try {
+                log('开始运行所有测试...');
+                const config = getConfig();
+                
+                if (!validateConfig(config)) {
+                    return;
+                }
+                
+                log('使用的配置信息:');
+                log(`- App ID: ${config.appId}`);
+                log(`- App Secret: ${config.appSecret ? '已设置 (部分隐藏: ' + config.appSecret.substring(0, 5) + '...)' : '未设置'}`);
+                log(`- 多维表格Token: ${config.tableToken}`);
+                log(`- 多维表格ID: ${config.tableId}`);
+                
+                const accessToken = await getAccessToken(config.appId, config.appSecret);
+                if (!accessToken) {
+                    log('无法继续测试，获取访问令牌失败');
+                    return;
+                }
+                
+                await testFormat1(config, accessToken);
+                await testFormat2(config, accessToken);
+                await testFormat3(config, accessToken);
+                
+                log('\n所有测试完成');
+            } catch (error) {
+                log(`错误: 测试过程中发生异常 - ${error.message}`);
+            }
+        }
+        
+        // 绑定按钮事件
+        document.getElementById('testAllBtn').addEventListener('click', runAllTests);
+        document.getElementById('testFormat1Btn').addEventListener('click', async () => {
+            const config = getConfig();
+            if (!validateConfig(config)) return;
+            const accessToken = await getAccessToken(config.appId, config.appSecret);
+            if (accessToken) await testFormat1(config, accessToken);
+        });
+        document.getElementById('testFormat2Btn').addEventListener('click', async () => {
+            const config = getConfig();
+            if (!validateConfig(config)) return;
+            const accessToken = await getAccessToken(config.appId, config.appSecret);
+            if (accessToken) await testFormat2(config, accessToken);
+        });
+        document.getElementById('testFormat3Btn').addEventListener('click', async () => {
+            const config = getConfig();
+            if (!validateConfig(config)) return;
+            const accessToken = await getAccessToken(config.appId, config.appSecret);
+            if (accessToken) await testFormat3(config, accessToken);
+        });
+        
+        // 初始提示
+        log('欢迎使用飞书API请求体格式测试工具');
+        log('请填写配置信息并点击测试按钮开始测试');
+        log('测试结果将显示在控制台和此页面的日志区域');
+    </script>
+</body>
+</html>

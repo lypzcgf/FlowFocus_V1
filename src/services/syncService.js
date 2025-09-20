@@ -1,3 +1,7 @@
+// 导入所需服务
+import DataMapper from './dataMapper.js';
+import TableService from './tableService.js';
+
 /**
  * 数据同步服务类
  * 提供数据同步引擎功能
@@ -853,8 +857,12 @@ class SyncService {
 }
 
 // 导出服务类
+export default SyncService;
+
+// 为CommonJS环境提供兼容
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = SyncService;
+  module.exports.default = SyncService;
 } else {
   window.SyncService = SyncService;
 }

@@ -12,6 +12,7 @@ class FeishuAdapter extends BaseAdapter {
     this.appSecret = config.appSecret;
     // 解决参数名称不一致问题：优先使用tableToken，如果不存在则使用tableId
     this.tableToken = config.tableToken || config.tableId;
+    // 优先使用配置中的tableId，如果不存在则使用默认值
     this.tableId = config.tableId || 'tblDefault';
     this.baseUrl = config.baseUrl || 'https://open.feishu.cn/open-apis/bitable/v1';
     this.authUrl = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
@@ -19,6 +20,12 @@ class FeishuAdapter extends BaseAdapter {
     this.tokenExpiry = null;
     this.rateLimitRemaining = 1000;
     this.rateLimitReset = null;
+    // 添加调试信息，帮助排查问题
+    console.log('FeishuAdapter initialized with:', {
+      appId: this.appId,
+      tableToken: this.tableToken,
+      tableId: this.tableId
+    });
   }
 
   /**
@@ -210,22 +217,87 @@ class FeishuAdapter extends BaseAdapter {
    */
   async createRecord(data) {
     try {
-      const url = `${this.baseUrl}/apps/${this.tableToken}/tables/${this.getTableId()}/records`;
+      // 构建URL - 直接使用传入的表格信息，修复URL构建错误
+      // 重要：直接使用data参数中的tableToken作为应用ID，使用data参数中的tableId作为表格ID
+      const appToken = data.tableToken; // 直接使用传入的应用token
+      const tableId = data.tableId; // 直接使用传入的表格ID
       
-      const requestData = {
-        fields: this.formatDataForFeishu(data)
+      // 重要修复：更新实例的appId和appSecret，确保getAuthHeaders能获取正确的认证信息
+      // 这解决了请求头中的令牌可能无效以及请求参数中显示"未设置"的问题
+      if (data.appId && data.appSecret) {
+        this.appId = data.appId;
+        this.appSecret = data.appSecret;
+        console.log('已更新飞书适配器的App ID和App Secret');
+      }
+      
+      console.log('飞书API URL构建参数:', { appToken, tableId, appId: this.appId });
+      const url = `${this.baseUrl}/apps/${appToken}/tables/${tableId}/records`;
+      
+      console.log('准备创建飞书记录:', { url: url });
+      
+      // 方案3：使用测试成功的数据集合字段格式
+      // 构建配置数据
+      // 使用更新后的实例属性来填充App ID和App Secret
+      const configData = {
+        '配置名称': data.name || '未命名配置',
+        'App ID': this.appId || '未设置',
+        'App Secret': this.appSecret ? '已设置 (加密)' : '未设置',
+        '多维表格token': appToken || '未设置',
+        '多维表格ID': tableId || '未设置',
+        '创建时间': new Date().toISOString()
       };
-
-      const headers = await this.getAuthHeaders();
       
-      const response = await this.makeRequest(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(requestData)
+      console.log('构建的配置数据:', {
+        '配置名称': configData['配置名称'],
+        'App ID': this.appId ? '已设置' : '未设置',
+        '多维表格token': appToken,
+        '多维表格ID': tableId
       });
+      
+      // 使用测试格式3：将所有配置数据整合成JSON字符串放入"数据集合"字段
+      const requestData = {
+        fields: {
+          '数据集合': JSON.stringify({
+            '配置名称': configData['配置名称'],
+            'App ID': this.appId || '未设置',
+            'App Secret': this.appSecret ? '已设置 (加密)' : '未设置',
+            '多维表格token': configData['多维表格token'],
+            '多维表格ID': configData['多维表格ID'],
+            '创建时间': configData['创建时间'] || new Date().toISOString()
+          })
+        }
+      };
+      
+      console.log('构建的请求体 - 数据集合格式:', requestData);
 
+      // 构建完整的请求选项，提前序列化body（与测试成功的代码保持一致）
+      const authHeaders = await this.getAuthHeaders();
+      const requestOptions = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          ...authHeaders
+        },
+        body: JSON.stringify(requestData) // 提前序列化，与测试成功的代码保持一致
+      };
+      
+      console.log('完整请求选项:', {
+        headers: requestOptions.headers,
+        bodyPreview: JSON.stringify(requestOptions.body).substring(0, 300)
+      });
+      
+      const response = await this.makeRequest(url, requestOptions);
+
+      // 记录响应结果
+      console.log('飞书记录创建响应:', response);
+      
       return this.formatFeishuResponse(response);
     } catch (error) {
+      console.error('创建飞书记录失败，详细错误:', {
+        error: error.message,
+        stack: error.stack,
+        data: data
+      });
       this.log('error', '创建飞书记录失败', { error: error.message, data });
       throw error;
     }
@@ -441,13 +513,16 @@ class FeishuAdapter extends BaseAdapter {
 
   // 私有方法
   getTableId() {
-    // 飞书多维表格中，如果没有指定具体的表格ID，使用默认的第一个表格
-    return this.config.tableId || 'tblDefault';
+    // 修复表格ID获取逻辑，确保返回正确的表格ID
+    // 优先使用配置中的tableId，如果不存在则使用实例变量this.tableId
+    return this.config.tableId || this.tableId || 'tblDefault';
   }
 
   formatDataForFeishu(data) {
     const fieldMapping = this.getFieldMapping();
     const formattedData = {};
+    
+    console.log('开始格式化数据:', { dataKeys: Object.keys(data) });
     
     // 基础字段映射
     Object.keys(fieldMapping).forEach(key => {
@@ -457,7 +532,11 @@ class FeishuAdapter extends BaseAdapter {
       if (value !== undefined && value !== null) {
         // 根据数据类型格式化
         if (typeof value === 'object' && !Array.isArray(value)) {
-          value = JSON.stringify(value);
+          try {
+            value = JSON.stringify(value);
+          } catch (e) {
+            value = String(value);
+          }
         } else if (Array.isArray(value)) {
           value = value.join(', ');
         } else if (typeof value === 'boolean') {
@@ -466,22 +545,87 @@ class FeishuAdapter extends BaseAdapter {
           value = String(value);
         }
         
-        formattedData[feishuField] = [{ type: 'text', text: value }];
+        // 飞书多维表格字段值格式 - 简化为直接值，符合API要求
+        formattedData[feishuField] = value;
+        console.log(`映射字段 ${key} -> ${feishuField}: ${value}`);
       }
     });
     
     // 确保必需字段存在
     if (!formattedData['ID'] && data.id) {
-      formattedData['ID'] = [{ type: 'text', text: data.id }];
+      formattedData['ID'] = data.id;
+      console.log(`添加ID字段: ${data.id}`);
     }
     
     if (!formattedData['创建时间']) {
-      formattedData['创建时间'] = [{ type: 'text', text: data.metadata?.createdAt || new Date().toISOString() }];
+      const createTime = data.metadata?.createdAt || new Date().toISOString();
+      formattedData['创建时间'] = createTime;
+      console.log(`添加创建时间字段: ${createTime}`);
     }
     
     if (!formattedData['更新时间']) {
-      formattedData['更新时间'] = [{ type: 'text', text: data.metadata?.updatedAt || new Date().toISOString() }];
+      const updateTime = data.metadata?.updatedAt || new Date().toISOString();
+      formattedData['更新时间'] = updateTime;
+      console.log(`添加更新时间字段: ${updateTime}`);
     }
+    
+    // 处理配置名称字段（从截图中看到配置名称字段很重要）
+    if (!formattedData['配置名称'] && data.name) {
+      formattedData['配置名称'] = data.name;
+      console.log(`添加配置名称字段: ${data.name}`);
+    }
+    
+    // 特别处理数据集合字段，确保它被正确添加到飞书表格
+    // 优先级：优先检查data对象，确保完整的配置信息被同步
+    try {
+      const dataSetValue = JSON.stringify(data);
+      formattedData['数据集合'] = dataSetValue;
+      console.log(`强制添加数据集合字段: 数据长度=${dataSetValue.length}, 数据样例=${dataSetValue.substring(0, 50)}...`);
+    } catch (e) {
+      formattedData['数据集合'] = '数据序列化失败';
+      console.error('数据集合字段序列化失败:', e);
+    }
+    
+    // 处理原始数据中的所有字段，确保不会遗漏重要信息
+    Object.keys(data).forEach(key => {
+      // 如果是已经处理过的字段，跳过
+      if (fieldMapping[key]) return;
+      
+      let value = data[key];
+      if (value !== undefined && value !== null) {
+        // 直接使用原始字段名作为飞书字段名
+        if (typeof value === 'object' && !Array.isArray(value)) {
+          try {
+            value = JSON.stringify(value);
+          } catch (e) {
+            value = String(value);
+          }
+        } else if (Array.isArray(value)) {
+          value = value.join(', ');
+        } else if (typeof value === 'boolean') {
+          value = value ? '是' : '否';
+        } else {
+          value = String(value);
+        }
+        
+        formattedData[key] = value;
+        console.log(`添加原始字段 ${key}: ${value}`);
+      }
+    });
+    
+    // 检查数据集合字段是否已正确添加
+    if (formattedData['数据集合']) {
+      console.log('数据集合字段已成功添加到格式化数据中');
+    } else {
+      console.error('错误：数据集合字段未能添加到格式化数据中！');
+    }
+    
+    console.log('飞书数据格式化完成，总字段数:', Object.keys(formattedData).length);
+    console.log('格式化数据中的关键字段:', {
+      '数据集合': formattedData['数据集合'] ? '已添加' : '未添加',
+      '配置名称': formattedData['配置名称'] ? '已添加' : '未添加',
+      'ID': formattedData['ID'] ? '已添加' : '未添加'
+    });
     
     return formattedData;
   }
@@ -681,6 +825,8 @@ class FeishuAdapter extends BaseAdapter {
       type: '类型',
       name: '名称',
       data: '数据',
+      dataset: '数据集合', // 添加数据集合字段映射
+      dataCollection: '数据集合', // 备用字段名映射
       metadata: '元数据',
       createdAt: '创建时间',
       updatedAt: '更新时间',
