@@ -242,104 +242,175 @@ class FeishuAdapter extends BaseAdapter {
    */
   async createRecord(data) {
     try {
-      // 构建URL - 直接使用传入的表格信息，修复URL构建错误
-      // 重要：直接使用data参数中的tableToken作为应用ID，使用data参数中的tableId作为表格ID
+      // 1. 准备基础参数
       const appToken = data.tableToken;
       const tableId = data.tableId;
       
-      // 重要修复：更新实例的appId和appSecret，确保getAuthHeaders能获取正确的认证信息
-      if (data.appId && data.appSecret) {
-        this.appId = data.appId;
-        this.appSecret = data.appSecret;
-        console.log('已更新飞书适配器的App ID和App Secret');
-      }
+      // 2. 更新认证信息
+      this.updateAuthInfo(data);
       
-      console.log('飞书API URL构建参数:', { appToken, tableId, appId: this.appId });
-      const url = `${this.baseUrl}/apps/${appToken}/tables/${tableId}/records`;
+      // 3. 构建请求URL
+      const url = this.buildCreateRecordUrl(appToken, tableId);
       
-      console.log('准备创建飞书记录:', { url: url });
+      // 4. 准备请求数据
+      const requestData = this.prepareCreateRequestData(data);
       
-      // 使用dataMapper中已经准备好的"数据集合"字段
-      // 为大模型配置创建请求体
-      let requestData;
+      // 5. 构建请求选项
+      const requestOptions = await this.buildRequestOptions(requestData);
       
-      if (data.type === 'modelConfig' && data['数据集合']) {
-        // 如果是大模型配置且已有"数据集合"字段，直接使用
-        console.log('使用现有"数据集合"字段');
-        requestData = {
-          fields: {
-            '数据集合': data['数据集合']
-          }
-        };
-      } else {
-        // 其他类型或没有"数据集合"字段时的默认处理
-        // 构建配置数据
-        const configData = {
-          '配置名称': data.name || '未命名配置',
-          'App ID': this.appId || '未设置',
-          'App Secret': this.appSecret ? '已设置 (加密)' : '未设置',
-          '多维表格token': appToken || '未设置',
-          '多维表格ID': tableId || '未设置',
-          '创建时间': new Date().toISOString()
-        };
-        
-        console.log('构建的配置数据:', {
-          '配置名称': configData['配置名称'],
-          'App ID': this.appId ? '已设置' : '未设置',
-          '多维表格token': appToken,
-          '多维表格ID': tableId
-        });
-        
-        // 将所有配置数据整合成JSON字符串放入"数据集合"字段
-        requestData = {
-          fields: {
-            '数据集合': JSON.stringify({
-              '配置名称': configData['配置名称'],
-              'App ID': this.appId || '未设置',
-              'App Secret': this.appSecret ? '已设置 (加密)' : '未设置',
-              '多维表格token': configData['多维表格token'],
-              '多维表格ID': configData['多维表格ID'],
-              '创建时间': configData['创建时间'] ? DateUtils.format(new Date(configData['创建时间']), 'YYYY-MM-DD HH:mm:ss') : DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
-              '更新时间': DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
-              '状态': '正常'
-            })
-          }
-        };
-      }
-      
-      console.log('构建的请求体 - 数据集合格式:', requestData);
-
-      // 构建完整的请求选项，提前序列化body
-      const authHeaders = await this.getAuthHeaders();
-      const requestOptions = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          ...authHeaders
-        },
-        body: JSON.stringify(requestData) // 提前序列化
-      };
-      
-      console.log('完整请求选项:', {
-        headers: requestOptions.headers,
-        bodyPreview: JSON.stringify(requestOptions.body).substring(0, 300)
-      });
-      
+      // 6. 发送请求
       const response = await this.makeRequest(url, requestOptions);
-
-      // 记录响应结果
-      console.log('飞书记录创建响应:', response);
       
+      // 7. 记录并返回结果
+      console.log('飞书记录创建响应:', response);
       return this.formatFeishuResponse(response);
     } catch (error) {
-      console.error('创建飞书记录失败，详细错误:', {
-        error: error.message,
-        stack: error.stack,
-        data: data
-      });
-      this.log('error', '创建飞书记录失败', { error: error.message, data });
-      throw error;
+      this.handleCreateRecordError(error, data);
     }
+  }
+  
+  /**
+   * 更新适配器的认证信息
+   * @private
+   * @param {Object} data - 包含认证信息的数据
+   */
+  updateAuthInfo(data) {
+    if (data.appId && data.appSecret) {
+      this.appId = data.appId;
+      this.appSecret = data.appSecret;
+      console.log('已更新飞书适配器的App ID和App Secret');
+    }
+  }
+  
+  /**
+   * 构建创建记录的URL
+   * @private
+   * @param {string} appToken - 应用token
+   * @param {string} tableId - 表格ID
+   * @returns {string} 完整的请求URL
+   */
+  buildCreateRecordUrl(appToken, tableId) {
+    console.log('飞书API URL构建参数:', { appToken, tableId, appId: this.appId });
+    const url = `${this.baseUrl}/apps/${appToken}/tables/${tableId}/records`;
+    console.log('准备创建飞书记录:', { url });
+    return url;
+  }
+  
+  /**
+   * 准备创建记录的请求数据
+   * @private
+   * @param {Object} data - 原始数据
+   * @returns {Object} 格式化后的请求数据
+   */
+  prepareCreateRequestData(data) {
+    // 优先使用已准备好的"数据集合"字段
+    if (data['数据集合']) {
+      console.log('使用现有"数据集合"字段');
+      return {
+        fields: {
+          '数据集合': data['数据集合']
+        }
+      };
+    }
+    
+    // 根据数据类型处理
+    if (data.type === 'modelConfig') {
+      return this.prepareModelConfigData(data);
+    }
+    
+    // 其他类型默认处理
+    return this.prepareDefaultData(data);
+  }
+  
+  /**
+   * 准备大模型配置数据
+   * @private
+   * @param {Object} data - 模型配置数据
+   * @returns {Object} 格式化后的请求数据
+   */
+  prepareModelConfigData(data) {
+    // 构建配置数据
+    const configData = {
+      '配置名称': data.name || '未命名配置',
+      'App ID': this.appId || '未设置',
+      'App Secret': this.appSecret ? '已设置 (加密)' : '未设置',
+      '创建时间': new Date().toISOString(),
+      '更新时间': DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+      '状态': '正常'
+    };
+    
+    console.log('构建的模型配置数据:', {
+      '配置名称': configData['配置名称'],
+      'App ID': this.appId ? '已设置' : '未设置',
+      '状态': configData['状态']
+    });
+    
+    // 将配置数据整合成JSON字符串放入"数据集合"字段
+    return {
+      fields: {
+        '数据集合': JSON.stringify(configData)
+      }
+    };
+  }
+  
+  /**
+   * 准备默认数据格式
+   * @private
+   * @param {Object} data - 原始数据
+   * @returns {Object} 格式化后的请求数据
+   */
+  prepareDefaultData(data) {
+    // 为没有预格式化数据的其他类型创建基本结构
+    return {
+      fields: {
+        '数据集合': JSON.stringify({
+          '创建时间': DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+          '状态': '正常'
+        })
+      }
+    };
+  }
+  
+  /**
+   * 构建请求选项
+   * @private
+   * @param {Object} requestData - 请求数据
+   * @returns {Promise<Object>} 完整的请求选项
+   */
+  async buildRequestOptions(requestData) {
+    const authHeaders = await this.getAuthHeaders();
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        ...authHeaders
+      },
+      body: JSON.stringify(requestData) // 提前序列化
+    };
+    
+    console.log('完整请求选项:', {
+      headers: { ...options.headers, 'App Secret': options.headers['App Secret'] ? '已设置' : '未设置' },
+      bodyPreview: JSON.stringify(options.body).substring(0, 300)
+    });
+    
+    return options;
+  }
+  
+  /**
+   * 处理创建记录错误
+   * @private
+   * @param {Error} error - 错误对象
+   * @param {Object} data - 原始数据
+   * @throws {Error} 抛出原始错误
+   */
+  handleCreateRecordError(error, data) {
+    console.error('创建飞书记录失败，详细错误:', {
+      error: error.message,
+      stack: error.stack,
+      data: { ...data, appSecret: data.appSecret ? '已设置' : '未设置' }
+    });
+    this.log('error', '创建飞书记录失败', { error: error.message, data });
+    throw error;
   }
 
   /**

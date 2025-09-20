@@ -93,8 +93,29 @@ class SyncService {
       
       this.updateSyncStatus(syncId, 'syncing', record.id);
       
-      // 数据映射
-      const mappedData = DataMapper.serializeForTable(record, record.type);
+      // 数据映射 - 增强数据类型检测和修正逻辑
+      // 优先使用外部传入的type字段，如果没有则根据内容自动检测
+      let dataType = record.type || '';
+      const originalType = record.type;
+      
+      // 只有当外部没有明确指定类型时，才根据数据内容自动检测
+      if (!dataType) {
+        if (record.originalText && record.rewrittenText) {
+          // 包含原文和改写内容，应为rewriteRecord类型
+          dataType = 'rewriteRecord';
+        } else if (record.apiKey && record.modelType) {
+          // 包含API密钥和模型类型，应为modelConfig类型
+          dataType = 'modelConfig';
+        } else if (record.platform && record.appId && record.appSecret) {
+          // 包含平台、App ID和App Secret，应为tableConfig类型
+          dataType = 'tableConfig';
+        }
+      }
+      
+      console.log('修正后的数据类型:', dataType, '原始类型:', originalType, '记录ID:', record.id);
+      alert(`数据类型信息:\n- 原始类型: ${originalType || '未设置'}\n- 确定类型: ${dataType}\n- 记录ID: ${record.id || '未知'}`);
+      
+      const mappedData = DataMapper.serializeForTable(record, dataType);
       
       // 使用共享表格服务实例或创建新实例
       // 重要：将源记录中的认证信息也传递给表格服务，确保在批量同步时能正确获取访问令牌

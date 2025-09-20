@@ -38,6 +38,7 @@ class DataMapper {
         serializedData.tableId = localData.tableId;
       }
       
+      
       // 根据数据类型添加特定字段
       switch (dataType) {
         case 'modelConfig':
@@ -65,6 +66,23 @@ class DataMapper {
           serializedData.modelUsed = localData.modelType;
           serializedData.category = localData.category || '通用';
           serializedData.quality = localData.quality || 0;
+          alert(`数据类型信息:\n- 原始类型: ${dataType || '未设置'}\n- 确定类型: ${dataType}\n- 记录ID: ${localData.id || '未知'}`);
+          // 为改写工作记录构建"数据集合"字段
+          // 包含所有必要的信息
+          serializedData['数据集合'] = JSON.stringify({
+            '工作ID': localData.id,
+            '工作名称': localData.name,
+            '原文所属网页URL': localData.url || '',
+            '原文所属网页标题': localData.title || '',
+            '原文': localData.originalText,
+            '提示词': localData.prompt || '',
+            '改写结果': localData.rewrittenText,
+            'AI配置ID': localData.modelConfigId || '',
+            '大模型品牌': localData.modelBrand || '未知',
+            '大模型名称': localData.modelName || '未知',
+            '创建时间': localData.createdAt ? DateUtils.format(new Date(localData.createdAt), 'YYYY-MM-DD HH:mm:ss') : DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
+            '更新时间': localData.updatedAt ? DateUtils.format(new Date(localData.updatedAt), 'YYYY-MM-DD HH:mm:ss') : DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss')
+          });
           break;
           
         case 'tableConfig':

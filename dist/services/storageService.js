@@ -66,7 +66,6 @@ class StorageService {
    * @returns {Promise<void>}
    */
   async editData(key, value) {
-    // 编辑数据实际上是保存数据的一个别名，因为Chrome Storage的set方法既可以创建也可以更新数据
     return this.saveData(key, value);
   }
 
@@ -93,28 +92,28 @@ class StorageService {
    */
   async saveModelConfig(config) {
     try {
-      // 获取现有的配置列表
       const configs = await this.loadModelConfigs();
+      
+      const configWithType = {
+        ...config,
+        type: 'modelConfig',
+        updatedAt: new Date().toISOString()
+      };
       
       let existingIndex = -1;
       
-      // 如果配置包含ID，优先通过ID查找（编辑模式）
-      if (config.id) {
-        existingIndex = configs.findIndex(c => c.id === config.id);
+      if (configWithType.id) {
+        existingIndex = configs.findIndex(c => c.id === configWithType.id);
       } else {
-        // 如果没有ID，通过名称查找（新增模式或兼容旧数据）
-        existingIndex = configs.findIndex(c => c.name === config.name);
+        existingIndex = configs.findIndex(c => c.name === configWithType.name);
       }
       
       if (existingIndex >= 0) {
-        // 更新现有配置
-        configs[existingIndex] = config;
+        configs[existingIndex] = configWithType;
       } else {
-        // 添加新配置
-        configs.push(config);
+        configs.push(configWithType);
       }
       
-      // 保存更新后的配置列表
       await this.saveData('modelConfigs', configs);
     } catch (error) {
       console.error('保存模型配置失败:', error);
@@ -191,28 +190,28 @@ class StorageService {
    */
   async saveRewriteRecord(record) {
     try {
-      // 获取现有的改写记录列表
       const records = await this.loadRewriteRecords();
+      
+      const recordWithType = {
+        ...record,
+        type: 'rewriteRecord',
+        updatedAt: new Date().toISOString()
+      };
       
       let existingIndex = -1;
       
-      // 如果记录包含ID，优先通过ID查找（编辑模式）
-      if (record.id) {
-        existingIndex = records.findIndex(r => r.id === record.id);
+      if (recordWithType.id) {
+        existingIndex = records.findIndex(r => r.id === recordWithType.id);
       } else {
-        // 如果没有ID，通过名称查找（新增模式或兼容旧数据）
-        existingIndex = records.findIndex(r => r.name === record.name);
+        existingIndex = records.findIndex(r => r.name === recordWithType.name);
       }
       
       if (existingIndex >= 0) {
-        // 更新现有记录
-        records[existingIndex] = record;
+        records[existingIndex] = recordWithType;
       } else {
-        // 添加新记录
-        records.push(record);
+        records.push(recordWithType);
       }
       
-      // 保存更新后的记录列表
       await this.saveData('rewriteRecords', records);
     } catch (error) {
       console.error('保存改写记录失败:', error);
@@ -294,7 +293,6 @@ class StorageService {
       const index = records.findIndex(record => record.name === recordName);
       
       if (index >= 0) {
-        // 更新记录
         records[index] = { ...records[index], ...updates, updatedAt: new Date().toISOString() };
         await this.saveData('rewriteRecords', records);
       } else {
@@ -303,6 +301,120 @@ class StorageService {
     } catch (error) {
       console.error('编辑改写记录失败:', error);
       throw error;
+    }
+  }
+  
+  /**
+   * 保存表格配置
+   * @param {Object} config - 表格配置对象
+   * @returns {Promise<void>}
+   */
+  async saveTableConfig(config) {
+    try {
+      const configs = await this.loadData('tableConfigs') || [];
+      
+      const configWithType = {
+        ...config,
+        type: 'tableConfig',
+        updatedAt: new Date().toISOString()
+      };
+      
+      let existingIndex = -1;
+      
+      if (configWithType.id) {
+        existingIndex = configs.findIndex(c => c.id === configWithType.id);
+      } else {
+        existingIndex = configs.findIndex(c => c.name === configWithType.name);
+      }
+      
+      if (existingIndex >= 0) {
+        configs[existingIndex] = configWithType;
+      } else {
+        configs.push(configWithType);
+      }
+      
+      await this.saveData('tableConfigs', configs);
+    } catch (error) {
+      console.error('保存表格配置失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 加载所有表格配置
+   * @returns {Promise<Array>}
+   */
+  async loadTableConfigs() {
+    try {
+      const configs = await this.loadData('tableConfigs');
+      return configs || [];
+    } catch (error) {
+      console.error('加载表格配置失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 删除表格配置
+   * @param {string} configId - 配置ID
+   * @returns {Promise<void>}
+   */
+  async deleteTableConfig(configId) {
+    try {
+      const configs = await this.loadTableConfigs();
+      const updatedConfigs = configs.filter(config => config.id !== configId);
+      await this.saveData('tableConfigs', updatedConfigs);
+    } catch (error) {
+      console.error('删除表格配置失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取指定ID的表格配置
+   * @param {string} configId - 配置ID
+   * @returns {Promise<Object|null>}
+   */
+  async getTableConfig(configId) {
+    try {
+      const configs = await this.loadTableConfigs();
+      const config = configs.find(c => c.id === configId);
+      return config || null;
+    } catch (error) {
+      console.error('获取表格配置失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 批量添加类型标记到现有记录
+   */
+  async upgradeExistingRecords() {
+    try {
+      const modelConfigs = await this.loadModelConfigs();
+      const upgradedModelConfigs = modelConfigs.map(config => ({
+        ...config,
+        type: 'modelConfig'
+      }));
+      await this.saveData('modelConfigs', upgradedModelConfigs);
+      
+      const rewriteRecords = await this.loadRewriteRecords();
+      const upgradedRewriteRecords = rewriteRecords.map(record => ({
+        ...record,
+        type: 'rewriteRecord'
+      }));
+      await this.saveData('rewriteRecords', upgradedRewriteRecords);
+      
+      const tableConfigs = await this.loadTableConfigs();
+      const upgradedTableConfigs = tableConfigs.map(config => ({
+        ...config,
+        type: 'tableConfig'
+      }));
+      await this.saveData('tableConfigs', upgradedTableConfigs);
+      
+      console.log('成功升级所有记录，添加了类型标记');
+    } catch (error) {
+      console.error('升级记录失败:', error);
     }
   }
 }

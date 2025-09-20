@@ -39,7 +39,16 @@ const MODEL_DEFAULTS = {
 };
 
 // 等待DOM加载完成
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // 升级现有记录，添加类型标记
+    try {
+        console.log('开始升级现有记录，添加类型标记...');
+        await storageService.upgradeExistingRecords();
+        console.log('记录升级完成');
+    } catch (error) {
+        console.error('记录升级过程中出现错误:', error);
+    }
+    
     // 初始化标签页
     initTabs();
     
@@ -177,6 +186,7 @@ function initRewriteTab() {
     const saveResultBtn = document.getElementById('saveResultBtn');
     const selectAllRecords = document.getElementById('selectAllRecords');
     const deleteSelectedRecordsBtn = document.getElementById('deleteSelectedRecordsBtn');
+    const batchSyncRecordsBtn = document.getElementById('batchSyncRecordsBtn');
     const rewritePrompt = document.getElementById('rewritePrompt');
     
     // 设置改写提示词文本框的默认值
@@ -194,6 +204,9 @@ function initRewriteTab() {
     saveResultBtn.addEventListener('click', saveRewriteResult);
     selectAllRecords.addEventListener('change', toggleAllRecords);
     deleteSelectedRecordsBtn.addEventListener('click', deleteSelectedRecords);
+    if (batchSyncRecordsBtn) {
+        batchSyncRecordsBtn.addEventListener('click', batchSyncRewriteRecords);
+    }
     
     // 加载模型配置到下拉列表
     loadModelConfigsToSelect();
@@ -961,6 +974,7 @@ async function loadRewriteHistory() {
                 </div>
                 <div class="record-actions">
                     <button class="edit-btn" data-name="${record.name}">编辑</button>
+                    <button class="sync-btn" data-id="${record.id}">同步</button>
                     <button class="delete-btn" data-name="${record.name}">删除</button>
                 </div>
             </div>
@@ -971,6 +985,14 @@ async function loadRewriteHistory() {
             button.addEventListener('click', function() {
                 const recordName = this.getAttribute('data-name');
                 editRewriteRecord(recordName);
+            });
+        });
+        
+        // 绑定同步按钮事件
+        document.querySelectorAll('.record-actions .sync-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const recordId = this.getAttribute('data-id');
+                syncRewriteRecord(recordId);
             });
         });
         
@@ -1099,6 +1121,58 @@ async function deleteSelectedRecords() {
             console.error('批量删除记录失败:', error);
             showAlert('删除记录失败: ' + error.message, 'error');
         }
+    }
+}
+
+// 批量同步改写工作记录
+async function batchSyncRewriteRecords() {
+    const recordItems = document.querySelectorAll('.record-item');
+    const selectedRecords = [];
+    const selectedRecordIds = [];
+    
+    recordItems.forEach(item => {
+        const checkbox = item.querySelector('.record-checkbox');
+        if (checkbox && checkbox.checked) {
+            const recordName = checkbox.getAttribute('data-name');
+            selectedRecords.push(recordName);
+            selectedRecordIds.push(item.dataset.id);
+        }
+    });
+    
+    if (selectedRecords.length === 0) {
+        showAlert('请先选择要同步的记录', 'warning');
+        return;
+    }
+    
+    try {
+        // 显示同步对话框
+        const syncDialog = document.getElementById('syncDialog');
+        const dialogTitle = document.getElementById('syncDialogTitle');
+        const selectedRecordsCount = document.getElementById('selectedRecordsCount');
+        const selectedConfigNames = document.getElementById('selectedConfigNames');
+        const confirmSyncBtn = document.getElementById('confirmSyncBtn');
+        
+        // 更新对话框内容
+        dialogTitle.textContent = '改写工作信息同步设置';
+        selectedRecordsCount.textContent = `共 ${selectedRecords.length} 条`;
+        selectedConfigNames.textContent = selectedRecords.join(', ');
+        
+        // 保存选中的记录到对话框元素中
+        confirmSyncBtn.setAttribute('data-selected-configs', JSON.stringify(selectedRecordIds));
+        confirmSyncBtn.setAttribute('data-config-type', 'rewriteRecord');
+        
+        // 绑定对话框事件监听器 - 传递正确的配置类型
+        bindSyncDialogEvents(recordId, 'rewriteRecord');
+        
+        // 加载目标配置列表
+        await loadTargetConfigs();
+        
+        // 显示对话框
+        syncDialog.style.display = 'block';
+        
+    } catch (error) {
+        console.error('批量同步改写工作记录失败:', error);
+        showAlert('批量同步记录失败: ' + error.message, 'error');
     }
 }
 
@@ -1740,6 +1814,10 @@ async function loadTargetConfigs(currentConfigId) {
 
 // 绑定同步对话框事件
 function bindSyncDialogEvents(configId, configType = 'tableConfig') {
+    // 保存配置类型到确认按钮
+    const confirmSyncBtn = document.getElementById('confirmSyncBtn');
+    confirmSyncBtn.setAttribute('data-config-type', configType);
+    
     // 关闭按钮
     document.querySelector('#syncDialog .close').onclick = function() {
         document.getElementById('syncDialog').style.display = 'none';
@@ -1750,9 +1828,10 @@ function bindSyncDialogEvents(configId, configType = 'tableConfig') {
         const syncDialog = document.getElementById('syncDialog');
         const confirmSyncBtn = document.getElementById('confirmSyncBtn');
         
-        // 清除批量同步标记和配置类型
+        // 清除批量同步标记、配置类型和单条记录ID
         confirmSyncBtn.removeAttribute('data-selected-configs');
         confirmSyncBtn.removeAttribute('data-config-type');
+        confirmSyncBtn.removeAttribute('data-record-id');
         
         // 关闭对话框
         syncDialog.style.display = 'none';
@@ -1760,9 +1839,10 @@ function bindSyncDialogEvents(configId, configType = 'tableConfig') {
     
     // 确定按钮
     document.getElementById('confirmSyncBtn').onclick = function() {
-        // 保存配置类型信息
-        this.setAttribute('data-config-type', configType);
-        startSync(configId);
+        // 从按钮上读取data-record-id属性值
+        const recordId = this.getAttribute('data-record-id');
+        // 如果有recordId，则传递recordId，否则传递configId
+        startSync(recordId || configId);
     };
     
     // 目标配置选择变化时加载表格
@@ -1902,7 +1982,7 @@ async function batchSyncTableConfigs() {
         confirmSyncBtn.setAttribute('data-selected-configs', JSON.stringify(selectedConfigs));
         
         // 绑定对话框事件监听器
-        bindSyncDialogEvents();
+        bindSyncDialogEvents(recordId, 'rewriteRecord');
         
         // 显示对话框
         syncDialog.style.display = 'block';
@@ -1913,12 +1993,58 @@ async function batchSyncTableConfigs() {
     }
 }
 
+// 同步改写工作记录
+async function syncRewriteRecord(recordId) {
+    try {
+        // 获取改写工作记录
+        const rewriteRecords = await storageService.loadData('rewriteRecords') || [];
+        const record = rewriteRecords.find(r => r.id === recordId);
+        
+        if (!record) {
+            showAlert('改写工作记录不存在', 'error');
+            return;
+        }
+        
+        // 显示同步对话框
+        const syncDialog = document.getElementById('syncDialog');
+        const dialogTitle = document.getElementById('syncDialogTitle');
+        const selectedRecordsCount = document.getElementById('selectedRecordsCount');
+        const selectedConfigNames = document.getElementById('selectedConfigNames');
+        const confirmSyncBtn = document.getElementById('confirmSyncBtn');
+        
+        // 更新对话框内容
+        dialogTitle.textContent = '改写工作信息同步设置';
+        selectedRecordsCount.textContent = '共 1 条';
+        selectedConfigNames.textContent = record.name;
+        
+        // 保存选中的记录到对话框元素中 - 使用记录ID，与其他配置类型保持一致
+        confirmSyncBtn.removeAttribute('data-selected-configs');
+        confirmSyncBtn.setAttribute('data-record-id', recordId);
+        confirmSyncBtn.setAttribute('data-config-type', 'rewriteRecord');
+        
+        // 绑定对话框事件监听器
+        bindSyncDialogEvents(recordId, 'rewriteRecord');
+        
+        // 加载目标配置列表
+        await loadTargetConfigs();
+        
+        // 显示对话框
+        syncDialog.style.display = 'block';
+        
+    } catch (error) {
+        console.error('同步改写工作记录失败:', error);
+        showAlert('同步改写工作记录失败: ' + error.message, 'error');
+    }
+}
+
 // 开始同步 - 支持单条和批量同步
 async function startSync(configId) {
     const targetConfigId = document.getElementById('targetConfigSelect').value;
     const targetTableName = document.getElementById('targetTableInput').value;
     const syncBtn = document.getElementById('confirmSyncBtn');
-    const configType = syncBtn.getAttribute('data-config-type') || 'tableConfig';
+    const recordId = syncBtn.getAttribute('data-record-id');
+    // 如果有recordId但没有明确的configType，默认使用rewriteRecord
+    const configType = syncBtn.getAttribute('data-config-type') || (recordId ? 'rewriteRecord' : 'tableConfig');
     
     if (!targetConfigId) {
         showAlert('请选择同步目的链接', 'warning');
@@ -1947,7 +2073,7 @@ async function startSync(configId) {
             // 创建同步服务实例
             const syncService = new SyncService();
             
-            // 检查是否是批量同步
+            // 检查是单条同步还是批量同步
             const selectedConfigsJson = syncBtn.getAttribute('data-selected-configs');
             
             if (selectedConfigsJson) {
@@ -1959,6 +2085,9 @@ async function startSync(configId) {
                 if (configType === 'modelConfig') {
                     const modelConfigs = await storageService.loadData('modelConfigs') || [];
                     sourceConfigs = modelConfigs.filter(c => selectedConfigs.includes(c.id));
+                } else if (configType === 'rewriteRecord') {
+                    const rewriteRecords = await storageService.loadData('rewriteRecords') || [];
+                    sourceConfigs = rewriteRecords.filter(r => selectedConfigs.includes(r.id));
                 } else {
                     const tableConfigs = await storageService.loadData('tableConfigs') || [];
                     sourceConfigs = tableConfigs.filter(c => selectedConfigs.includes(c.id));
@@ -1993,6 +2122,33 @@ async function startSync(configId) {
                                 targetConfigId: targetConfig.id,
                                 targetTableName: targetTableName,
                                 syncTime: new Date().toISOString()
+                            }
+                        };
+                    } else if (configType === 'rewriteRecord') {
+                        // 改写工作记录同步数据
+                        return {
+                            id: sourceConfig.id,
+                            name: sourceConfig.name,
+                            type: 'rewriteRecord',
+                            originalText: sourceConfig.originalText,
+                            prompt: sourceConfig.prompt,
+                            rewrittenText: sourceConfig.rewrittenText,
+                            modelConfigId: sourceConfig.modelConfigId,
+                            modelBrand: sourceConfig.modelBrand,
+                            modelName: sourceConfig.modelName,
+                            tableToken: targetConfig.tableToken || targetConfig.tableId,
+                            tableId: targetTableName,
+                            createdAt: sourceConfig.createdAt,
+                            updatedAt: sourceConfig.updatedAt,
+                            metadata: {
+                                source: 'FlowFocus',
+                                syncType: 'batchRewriteRecordSync',
+                                sourceConfigId: sourceConfig.id,
+                                targetConfigId: targetConfig.id,
+                                targetTableName: targetTableName,
+                                syncTime: new Date().toISOString(),
+                                url: sourceConfig.url || '',
+                                title: sourceConfig.title || ''
                             }
                         };
                     } else {
@@ -2078,23 +2234,29 @@ async function startSync(configId) {
                 
                 showAlert(resultMessage, failCount > 0 ? 'warning' : 'success');
                 
-                // 清除批量同步标记
+                // 清除同步标记
                 syncBtn.removeAttribute('data-selected-configs');
+                syncBtn.removeAttribute('data-record-id');
+                syncBtn.removeAttribute('data-record-name');
                 
             } else {
-                // 单条同步逻辑
+                // 单条同步逻辑 - 统一使用ID查找，保持三种配置类型一致
                 let sourceConfig = null;
+                const actualConfigId = recordId || configId;
                 
                 if (configType === 'modelConfig') {
                     const modelConfigs = await storageService.loadData('modelConfigs') || [];
-                    sourceConfig = modelConfigs.find(c => c.id === configId);
+                    sourceConfig = modelConfigs.find(c => c.id === actualConfigId);
+                } else if (configType === 'rewriteRecord') {
+                    const rewriteRecords = await storageService.loadData('rewriteRecords') || [];
+                    sourceConfig = rewriteRecords.find(r => r.id === actualConfigId);
                 } else {
                     const tableConfigs = await storageService.loadData('tableConfigs') || [];
-                    sourceConfig = tableConfigs.find(c => c.id === configId);
+                    sourceConfig = tableConfigs.find(c => c.id === actualConfigId);
                 }
                 
                 if (!sourceConfig) {
-                    showAlert('源配置信息不存在', 'error');
+                    showAlert(`${configType === 'modelConfig' ? '大模型配置' : configType === 'rewriteRecord' ? '改写工作' : '多维表格'}信息不存在`, 'error');
                     return;
                 }
                 
@@ -2130,6 +2292,33 @@ async function startSync(configId) {
                             syncTime: new Date().toISOString()
                         }
                     };
+                } else if (configType === 'rewriteRecord') {
+                    // 改写工作记录同步数据
+                    syncData = {
+                        id: sourceConfig.id,
+                        name: sourceConfig.name,
+                        type: 'rewriteRecord',
+                        originalText: sourceConfig.originalText,
+                        prompt: sourceConfig.prompt,
+                        rewrittenText: sourceConfig.rewrittenText,
+                        modelConfigId: sourceConfig.modelConfigId,
+                        modelBrand: sourceConfig.modelBrand,
+                        modelName: sourceConfig.modelName,
+                        tableToken: targetConfig.tableToken || targetConfig.tableId,
+                        tableId: targetTableName,
+                        createdAt: sourceConfig.createdAt,
+                        updatedAt: sourceConfig.updatedAt,
+                        metadata: {
+                            source: 'FlowFocus',
+                            syncType: 'rewriteRecordSync',
+                            sourceConfigId: sourceConfig.id,
+                            targetConfigId: targetConfig.id,
+                            targetTableName: targetTableName,
+                            syncTime: new Date().toISOString(),
+                            url: sourceConfig.url || '',
+                            title: sourceConfig.title || ''
+                        }
+                    };
                 } else {
                     // 多维表格配置同步数据
                     syncData = {
@@ -2161,8 +2350,18 @@ async function startSync(configId) {
                 console.log('配置同步结果:', syncResult);
                 
                 // 显示同步成功信息
-                const configTypeName = configType === 'modelConfig' ? '大模型' : '多维表格';
-                showAlert(`${configTypeName}配置同步成功: ${sourceConfig.name} → ${targetConfig.name} (表格: ${targetTableName})`, 'success');
+                let configTypeName;
+                if (configType === 'modelConfig') {
+                    configTypeName = '大模型';
+                } else if (configType === 'rewriteRecord') {
+                    configTypeName = '改写工作';
+                } else {
+                    configTypeName = '多维表格';
+                }
+                showAlert(`${configTypeName}记录同步成功: ${sourceConfig.name} → ${targetConfig.name} (表格: ${targetTableName})`, 'success');
+                
+                // 清除单条同步标记
+                syncBtn.removeAttribute('data-record-id');
             }
             
             // 关闭对话框
