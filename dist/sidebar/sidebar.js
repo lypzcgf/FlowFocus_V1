@@ -2315,8 +2315,8 @@ async function startSync(configId) {
                             targetConfigId: targetConfig.id,
                             targetTableName: targetTableName,
                             syncTime: new Date().toISOString(),
-                            url: sourceConfig.url || '',
-                            title: sourceConfig.title || ''
+                            url: sourceConfig.sourceUrl || '',
+                            title: sourceConfig.sourceTitle || ''
                         }
                     };
                 } else {

@@ -72,8 +72,8 @@ class DataMapper {
           serializedData['数据集合'] = JSON.stringify({
             '工作ID': localData.id,
             '工作名称': localData.name,
-            '原文所属网页URL': localData.url || '',
-            '原文所属网页标题': localData.title || '',
+            '原文所属网页URL': localData.metadata.url || '',
+            '原文所属网页标题': localData.metadata.title || '',
             '原文': localData.originalText,
             '提示词': localData.prompt || '',
             '改写结果': localData.rewrittenText,
