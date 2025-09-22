@@ -75,7 +75,7 @@ class DataMapper {
             '原文所属网页URL': localData.metadata.url || '',
             '原文所属网页标题': localData.metadata.title || '',
             '原文': localData.originalText,
-            '提示词': localData.prompt || '',
+            '提示词': localData.rewritePrompt || '',
             '改写结果': localData.rewrittenText,
             'AI配置ID': localData.modelConfigId || '',
             'AI配置名称': localData.modelConfigName || '',

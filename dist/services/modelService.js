@@ -90,16 +90,16 @@ class ModelService {
    * 调用AI模型进行文本改写
    * @param {Object} config - 模型配置
    * @param {string} text - 待改写的文本
-   * @param {string} prompt - 改写提示词
+   * @param {string} rewritePrompt - 改写提示词
    * @param {Object} options - 额外选项
    * @returns {Promise<Object>}
    */
-  async rewriteText(config, text, prompt, options = {}) {
+  async rewriteText(config, text, rewritePrompt, options = {}) {
     const startTime = Date.now();
     
     try {
       const adapter = this.getAdapter(config);
-      const result = await adapter.rewriteText(text, prompt, options);
+      const result = await adapter.rewriteText(text, rewritePrompt, options);
       
       // 记录性能指标
       this.recordPerformanceMetric(config.type, 'rewriteText', Date.now() - startTime, result.success);

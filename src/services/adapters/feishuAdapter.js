@@ -948,7 +948,7 @@ class FeishuAdapter extends BaseAdapter {
       modelConfigName: 'AI配置名称',
       modelType: '大模型品牌',
       modelName: '大模型名称',
-      prompt: '提示词'
+      rewritePrompt: '提示词'
     };
   }
 }

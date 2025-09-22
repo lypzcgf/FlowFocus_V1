@@ -54,7 +54,7 @@ async function handleRewriteText(data, sendResponse) {
     }
     
     // 调用模型服务进行文本改写
-    const response = await modelService.rewriteText(config, data.text, data.prompt);
+    const response = await modelService.rewriteText(config, data.text, data.rewritePrompt);
     sendResponse(response);
   } catch (error) {
     console.error('Rewrite text error:', error);
