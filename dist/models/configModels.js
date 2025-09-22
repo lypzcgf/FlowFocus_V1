@@ -9,7 +9,8 @@
 class ModelConfig {
   constructor(data = {}) {
     this.id = data.id || this.generateId();
-    this.type = data.type || ''; // qwen, deepseek, volces, kimi, hunyuan
+    this.modelType = data.modelType || '';// qwen, deepseek, volces, kimi, hunyuan
+    this.type = data.type || ''; // 存储的数据类型
     this.name = data.name || '';
     this.apiKey = data.apiKey || '';
     this.baseUrl = data.baseUrl || '';
@@ -103,6 +104,7 @@ class ModelConfig {
       id: this.id,
       type: this.type,
       name: this.name,
+      modelType: this.modelType,
       apiKey: this.apiKey,
       baseUrl: this.baseUrl,
       modelEndpoint: this.modelEndpoint,

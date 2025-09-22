@@ -78,7 +78,8 @@ class DataMapper {
             '提示词': localData.prompt || '',
             '改写结果': localData.rewrittenText,
             'AI配置ID': localData.modelConfigId || '',
-            '大模型品牌': localData.modelBrand || '未知',
+            'AI配置名称': localData.modelConfigName || '',
+            '大模型品牌': localData.modelType || '未知',
             '大模型名称': localData.modelName || '未知',
             '创建时间': localData.createdAt ? DateUtils.format(new Date(localData.createdAt), 'YYYY-MM-DD HH:mm:ss') : DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss'),
             '更新时间': localData.updatedAt ? DateUtils.format(new Date(localData.updatedAt), 'YYYY-MM-DD HH:mm:ss') : DateUtils.format(new Date(), 'YYYY-MM-DD HH:mm:ss')

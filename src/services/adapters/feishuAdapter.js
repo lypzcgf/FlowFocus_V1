@@ -943,7 +943,12 @@ class FeishuAdapter extends BaseAdapter {
       updatedAt: '更新时间',
       status: '状态',
       category: '分类',
-      quality: '质量评估'
+      quality: '质量评估',
+      modelConfigId: 'AI配置ID',
+      modelConfigName: 'AI配置名称',
+      modelType: '大模型品牌',
+      modelName: '大模型名称',
+      prompt: '提示词'
     };
   }
 }

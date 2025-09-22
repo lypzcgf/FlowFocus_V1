@@ -861,12 +861,23 @@ async function saveRewriteResult() {
                 showAlert('未找到要编辑的记录', 'error');
                 return;
             }
+            
+            // 获取模型配置信息以更新modelConfigId、modelType和modelName
+            const modelConfigs = await storageService.loadModelConfigs();
+            const selectedConfig = modelConfigs.find(c => c.name === configName);
+            const modelConfigId = selectedConfig ? selectedConfig.id : '';
+            const modelType = selectedConfig ? selectedConfig.modelType : '';
+            const modelName = selectedConfig ? selectedConfig.modelEndpoint || '' : '';
+            
             // 更新记录信息
             foundRecord.name = rewriteName;
             foundRecord.originalText = originalText;
             foundRecord.rewritePrompt = rewritePrompt;
             foundRecord.rewriteResult = rewriteResult;
             foundRecord.modelConfigName = configName;
+            foundRecord.modelConfigId = modelConfigId;
+            foundRecord.modelType = modelType;
+            foundRecord.modelName = modelName;
             foundRecord.updatedAt = new Date().toISOString();
             record = foundRecord;
         } else {
@@ -881,10 +892,21 @@ async function saveRewriteResult() {
                     return;
                 }
                 // 用户选择覆盖，更新现有记录
+                
+                // 获取模型配置信息以更新modelConfigId、modelType和modelName
+                const modelConfigs = await storageService.loadModelConfigs();
+                const selectedConfig = modelConfigs.find(c => c.name === configName);
+                const modelConfigId = selectedConfig ? selectedConfig.id : '';
+                const modelType = selectedConfig ? selectedConfig.modelType : '';
+                const modelName = selectedConfig ? selectedConfig.modelEndpoint || '' : '';
+                
                 existingRecord.originalText = originalText;
                 existingRecord.rewritePrompt = rewritePrompt;
                 existingRecord.rewriteResult = rewriteResult;
                 existingRecord.modelConfigName = configName;
+                existingRecord.modelConfigId = modelConfigId;
+                existingRecord.modelType = modelType;
+                existingRecord.modelName = modelName;
                 existingRecord.updatedAt = new Date().toISOString();
                 record = existingRecord;
             } else {
@@ -895,6 +917,13 @@ async function saveRewriteResult() {
                 
                 const currentTab = tabs[0];
                 
+                // 获取模型配置信息以添加modelConfigId、modelType和modelName
+                const modelConfigs = await storageService.loadModelConfigs();
+                const selectedConfig = modelConfigs.find(c => c.name === configName);
+                const modelConfigId = selectedConfig ? selectedConfig.id : '';
+                const modelType = selectedConfig ? selectedConfig.modelType : '';
+                const modelName = selectedConfig ? selectedConfig.modelEndpoint || '' : '';
+                
                 // 创建新记录对象
                 record = {
                     id: generateUUID(),
@@ -903,6 +932,9 @@ async function saveRewriteResult() {
                     rewritePrompt: rewritePrompt,
                     rewriteResult: rewriteResult,
                     modelConfigName: configName,
+                    modelConfigId: modelConfigId,
+                    modelType: modelType,
+                    modelName: modelName,
                     sourceUrl: currentTab.url || '',
                     sourceTitle: currentTab.title || '',
                     createdAt: new Date().toISOString(),
@@ -2134,7 +2166,8 @@ async function startSync(configId) {
                             prompt: sourceConfig.prompt,
                             rewrittenText: sourceConfig.rewrittenText,
                             modelConfigId: sourceConfig.modelConfigId,
-                            modelBrand: sourceConfig.modelBrand,
+                            modelConfigName: sourceConfig.modelConfigName || '',
+                            modelType: sourceConfig.modelType,
                             modelName: sourceConfig.modelName,
                             tableToken: targetConfig.tableToken || targetConfig.tableId,
                             tableId: targetTableName,

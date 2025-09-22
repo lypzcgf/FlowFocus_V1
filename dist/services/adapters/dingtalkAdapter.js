@@ -384,7 +384,11 @@ class DingtalkAdapter extends BaseAdapter {
       updatedAt: 'dateField_updatedAt',
       status: 'selectField_status',
       category: 'selectField_category',
-      quality: 'numberField_quality'
+      quality: 'numberField_quality',
+      modelConfigId: 'textField_modelConfigId',
+      modelConfigName: 'textField_modelConfigName',
+      modelType: 'textField_modelType',
+      modelName: 'textField_modelName'
     };
   }
   

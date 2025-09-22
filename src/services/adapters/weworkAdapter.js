@@ -438,7 +438,11 @@ class WeworkAdapter extends BaseAdapter {
       updatedAt: { index: 6, type: 'date' },
       status: { index: 7, type: 'select' },
       category: { index: 8, type: 'select' },
-      quality: { index: 9, type: 'number' }
+      quality: { index: 9, type: 'number' },
+      modelConfigId: { index: 10, type: 'text' },
+      modelConfigName: { index: 11, type: 'text' },
+      modelType: { index: 12, type: 'text' },
+      modelName: { index: 13, type: 'text' }
     };
   }
   

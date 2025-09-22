@@ -13,6 +13,8 @@ class RewriteRecord {
     this.rewrittenText = data.rewrittenText || '';
     this.modelType = data.modelType || '';
     this.modelName = data.modelName || '';
+    this.modelConfigId = data.modelConfigId || '';
+    this.modelConfigName = data.modelConfigName || '';
     this.prompt = data.prompt || '';
     this.category = data.category || '通用';
     this.tags = data.tags || [];
@@ -141,6 +143,8 @@ class RewriteRecord {
       rewrittenText: this.rewrittenText,
       modelType: this.modelType,
       modelName: this.modelName,
+      modelConfigId: this.modelConfigId,
+      modelConfigName: this.modelConfigName,
       prompt: this.prompt,
       category: this.category,
       tags: this.tags,
