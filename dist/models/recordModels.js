@@ -15,7 +15,7 @@ class RewriteRecord {
     this.modelName = data.modelName || '';
     this.modelConfigId = data.modelConfigId || '';
     this.modelConfigName = data.modelConfigName || '';
-    this.prompt = data.prompt || '';
+    this.rewritePrompt = data.rewritePrompt || '';
     this.category = data.category || '通用';
     this.tags = data.tags || [];
     this.quality = data.quality || 0; // 0-5星评级
@@ -145,7 +145,7 @@ class RewriteRecord {
       modelName: this.modelName,
       modelConfigId: this.modelConfigId,
       modelConfigName: this.modelConfigName,
-      prompt: this.prompt,
+      rewritePrompt: this.rewritePrompt,
       category: this.category,
       tags: this.tags,
       quality: this.quality,
