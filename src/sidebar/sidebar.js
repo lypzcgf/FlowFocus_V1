@@ -1194,7 +1194,7 @@ async function batchSyncRewriteRecords() {
         confirmSyncBtn.setAttribute('data-config-type', 'rewriteRecord');
         
         // 绑定对话框事件监听器 - 传递正确的配置类型
-        bindSyncDialogEvents(recordId, 'rewriteRecord');
+        bindSyncDialogEvents(null, 'rewriteRecord');
         
         // 加载目标配置列表
         await loadTargetConfigs();

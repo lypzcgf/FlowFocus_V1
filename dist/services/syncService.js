@@ -113,7 +113,6 @@ class SyncService {
       }
       
       console.log('修正后的数据类型:', dataType, '原始类型:', originalType, '记录ID:', record.id);
-      alert(`数据类型信息:\n- 原始类型: ${originalType || '未设置'}\n- 确定类型: ${dataType}\n- 记录ID: ${record.id || '未知'}`);
       
       const mappedData = DataMapper.serializeForTable(record, dataType);
       

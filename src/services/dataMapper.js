@@ -66,7 +66,6 @@ class DataMapper {
           serializedData.modelUsed = localData.modelType;
           serializedData.category = localData.category || '通用';
           serializedData.quality = localData.quality || 0;
-          alert(`数据类型信息:\n- 原始类型: ${dataType || '未设置'}\n- 确定类型: ${dataType}\n- 记录ID: ${localData.id || '未知'}`);
           // 为改写工作记录构建"数据集合"字段
           // 包含所有必要的信息
           serializedData['数据集合'] = JSON.stringify({
