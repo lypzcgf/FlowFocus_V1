@@ -879,6 +879,34 @@ button#startRewriteBtn:disabled {
     box-shadow: 0 2px 4px rgba(40,167,69,0.2) !important;
 }
 
+/* 记录操作按钮特殊样式 - 与配置按钮样式保持一致 */
+.record-actions .sync-btn {
+    background-color: #28a745 !important;
+}
+
+.record-actions .sync-btn:hover {
+    background-color: #218838 !important;
+    box-shadow: 0 2px 4px rgba(40,167,69,0.2) !important;
+}
+
+.record-actions .edit-btn {
+    background-color: #28a745 !important;
+}
+
+.record-actions .edit-btn:hover {
+    background-color: #218838 !important;
+    box-shadow: 0 2px 4px rgba(40,167,69,0.2) !important;
+}
+
+.record-actions .delete-btn {
+    background-color: #28a745 !important;
+}
+
+.record-actions .delete-btn:hover {
+    background-color: #218838 !important;
+    box-shadow: 0 2px 4px rgba(40,167,69,0.2) !important;
+}
+
 .config-actions button:active,
 .record-actions button:active {
     transform: translateY(0);
