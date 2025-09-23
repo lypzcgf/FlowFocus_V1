@@ -471,6 +471,12 @@ async function loadModelConfigs() {
                 deleteModelConfig(configName);
             });
         });
+        
+        // 确保全选复选框状态为未选中，与配置列表保持一致
+        const selectAllConfigs = document.getElementById('selectAllConfigs');
+        if (selectAllConfigs) {
+            selectAllConfigs.checked = false;
+        }
     } catch (error) {
         console.error('加载模型配置失败:', error);
         const configsList = document.getElementById('configsList');
@@ -1027,13 +1033,16 @@ async function loadRewriteHistory() {
                 syncRewriteRecord(recordId);
             });
         });
-        
+
         document.querySelectorAll('.record-actions .delete-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const recordName = this.getAttribute('data-name');
                 deleteRewriteRecord(recordName);
             });
         });
+        
+        // 确保全选复选框状态为未选中，与记录列表保持一致
+        document.getElementById('selectAllRecords').checked = false;
     } catch (error) {
         console.error('加载改写历史记录失败:', error);
         document.getElementById('recordsList').innerHTML = '<div class="error-message">加载记录失败</div>';
@@ -1419,6 +1428,12 @@ async function loadTableConfigs() {
         document.getElementById('batchSyncConfigsBtn').addEventListener('click', function() {
             batchSyncModelConfigs();
         });
+        
+        // 确保全选复选框状态为未选中，与配置列表保持一致
+        const selectAllTableConfigs = document.getElementById('selectAllTableConfigs');
+        if (selectAllTableConfigs) {
+            selectAllTableConfigs.checked = false;
+        }
     } catch (error) {
         console.error('加载表格配置失败:', error);
         document.getElementById('tableConfigsList').innerHTML = '<div class="error-message">加载配置失败</div>';
