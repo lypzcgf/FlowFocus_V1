@@ -1207,12 +1207,12 @@ async function batchSyncRewriteRecords() {
         updateSyncDialogUI('rewriteRecord');
         
         // 加载目标配置列表
-        await loadTargetConfigs();
-        await ensureTargetSelectOptions();
+        await loadTargetConfigs(null, 'rewriteRecord');
+        await ensureTargetSelectOptions(null, 'rewriteRecord');
         const selectR = document.getElementById('targetConfigSelect');
         if (selectR && selectR.options.length > 0 && !selectR.value) {
             selectR.options[0].selected = true;
-            await loadTargetTables(selectR.options[0].value);
+            await loadTargetTables(selectR.options[0].value, 'rewriteRecord');
         }
         // 优先预填改写功能标签的全局默认目标
         try {
@@ -1222,7 +1222,7 @@ async function batchSyncRewriteRecords() {
                 const targetTableInput = document.getElementById('targetTableInput');
                 if (targetSelect && globalDefault.targetConfigId) {
                     targetSelect.value = globalDefault.targetConfigId;
-                    await loadTargetTables(globalDefault.targetConfigId);
+                    await loadTargetTables(globalDefault.targetConfigId, 'rewriteRecord');
                 }
                 if (targetTableInput && globalDefault.targetTableId) {
                     targetTableInput.value = globalDefault.targetTableId;
@@ -1472,6 +1472,11 @@ function getPlatformName(platform) {
         'wework': '企业微信'
     };
     return names[platform] || platform;
+}
+
+function formatTargetOptionText(config, isCurrent = false) {
+    const name = config.name || '未命名配置';
+    return name;
 }
 
 // 编辑多维表格配置
@@ -1800,8 +1805,8 @@ async function showSyncDialog(configId) {
         updateSyncDialogUI('tableConfig');
         
         // 加载可用的目标配置（不传当前ID）
-        await loadTargetConfigs();
-        await ensureTargetSelectOptions();
+        await loadTargetConfigs(null, 'tableConfig');
+        await ensureTargetSelectOptions(null, 'tableConfig');
         
         // 清空上次填写的目标表格，避免误操作
         const targetTableInputA = document.getElementById('targetTableInput');
@@ -1815,7 +1820,7 @@ async function showSyncDialog(configId) {
             const hasOption = Array.from(targetSelectA.options || []).some(o => o.value === recordTargetIdA);
             if (hasOption) {
                 targetSelectA.value = recordTargetIdA;
-                await loadTargetTables(recordTargetIdA);
+                await loadTargetTables(recordTargetIdA, 'tableConfig');
             }
         }
         if (recordTableA && targetTableInputA) {
@@ -1829,7 +1834,7 @@ async function showSyncDialog(configId) {
                     const hasOpt = Array.from(targetSelectA.options || []).some(o => o.value === globalDefaultA.targetConfigId);
                     if (hasOpt) {
                         targetSelectA.value = globalDefaultA.targetConfigId;
-                        await loadTargetTables(globalDefaultA.targetConfigId);
+                        await loadTargetTables(globalDefaultA.targetConfigId, 'tableConfig');
                     }
                 }
                 if (globalDefaultA.targetTableId) {
@@ -1869,8 +1874,8 @@ async function showModelSyncDialog(configId) {
         updateSyncDialogUI('modelConfig');
         
         // 加载可用的目标配置（不传当前ID）
-        await loadTargetConfigs();
-        await ensureTargetSelectOptions();
+        await loadTargetConfigs(null, 'modelConfig');
+        await ensureTargetSelectOptions(null, 'modelConfig');
         
         // 清空上次填写的目标表格，避免误操作
         const targetTableInputB = document.getElementById('targetTableInput');
@@ -1884,7 +1889,7 @@ async function showModelSyncDialog(configId) {
             const hasOption = Array.from(targetSelectB.options || []).some(o => o.value === recordTargetIdB);
             if (hasOption) {
                 targetSelectB.value = recordTargetIdB;
-                await loadTargetTables(recordTargetIdB);
+                await loadTargetTables(recordTargetIdB, 'modelConfig');
             }
         }
         if (recordTableB && targetTableInputB) {
@@ -1898,7 +1903,7 @@ async function showModelSyncDialog(configId) {
                     const hasOpt = Array.from(targetSelectB.options || []).some(o => o.value === globalDefaultB.targetConfigId);
                     if (hasOpt) {
                         targetSelectB.value = globalDefaultB.targetConfigId;
-                        await loadTargetTables(globalDefaultB.targetConfigId);
+                        await loadTargetTables(globalDefaultB.targetConfigId, 'modelConfig');
                     }
                 }
                 if (globalDefaultB.targetTableId) {
@@ -1918,7 +1923,7 @@ async function showModelSyncDialog(configId) {
 }
 
 // 加载目标配置列表
-async function loadTargetConfigs(currentConfigId) {
+async function loadTargetConfigs(currentConfigId, configType) {
     try {
         const rawConfigs = await storageService.loadData('tableConfigs') || [];
         const configs = Array.isArray(rawConfigs) ? rawConfigs : [];
@@ -1932,7 +1937,7 @@ async function loadTargetConfigs(currentConfigId) {
         // 使用innerHTML一次性填充选项，避免某些环境下appendChild不生效
         const optionsHtml = configs.map(config => {
             const isCurrent = config.id === currentConfigId;
-            const text = `${(config.name || '未命名配置')} (${getPlatformName(config.platform)})${isCurrent ? ' (当前配置)' : ''}`;
+            const text = formatTargetOptionText(config, isCurrent);
             return `<option value="${config.id || ''}" ${isCurrent ? 'selected' : ''}>${text}</option>`;
         }).join('');
         targetSelect.innerHTML = optionsHtml;
@@ -1952,7 +1957,7 @@ async function loadTargetConfigs(currentConfigId) {
         const selectedValue = targetSelect.value || (targetSelect.options[0]?.value || '');
         if (selectedValue) {
             targetSelect.value = selectedValue;
-            await loadTargetTables(selectedValue);
+            await loadTargetTables(selectedValue, configType);
             try { targetSelect.dispatchEvent(new Event('change')); } catch {}
         }
 
@@ -1964,19 +1969,19 @@ async function loadTargetConfigs(currentConfigId) {
     }
 }
 
-async function ensureTargetSelectOptions(currentConfigId) {
+async function ensureTargetSelectOptions(currentConfigId, configType) {
     const targetSelect = document.getElementById('targetConfigSelect');
     if (!targetSelect) return;
     const needReload = !targetSelect.options.length || (targetSelect.options.length === 1 && !targetSelect.options[0].value);
     if (needReload) {
-        await loadTargetConfigs(currentConfigId);
+        await loadTargetConfigs(currentConfigId, configType);
     }
     // 若仍未选中任何值，强制选中第一项并加载其表格
     if (targetSelect.options.length > 0 && (!targetSelect.value || targetSelect.selectedIndex < 0)) {
         targetSelect.selectedIndex = 0;
         const v = targetSelect.options[0].value;
         if (v) {
-            await loadTargetTables(v);
+            await loadTargetTables(v, configType);
         }
     }
 }
@@ -2016,7 +2021,8 @@ function bindSyncDialogEvents(configId, configType = 'tableConfig') {
     
     // 目标配置选择变化时加载表格
     document.getElementById('targetConfigSelect').onchange = function() {
-        loadTargetTables(this.value);
+        const t = document.getElementById('confirmSyncBtn').getAttribute('data-config-type');
+        loadTargetTables(this.value, t);
     };
     
     // 点击模态框外部关闭
@@ -2030,7 +2036,7 @@ function bindSyncDialogEvents(configId, configType = 'tableConfig') {
 
 // 加载目标表格列表
 // 加载目标表格配置信息
-async function loadTargetTables(targetConfigId) {
+async function loadTargetTables(targetConfigId, configType) {
     try {
         if (!targetConfigId) {
             console.log('targetConfigId is empty');
@@ -2050,10 +2056,11 @@ async function loadTargetTables(targetConfigId) {
         
         console.log('Found target config:', targetConfig.name);
         
-        // 如果配置中有表格名称，可以预填到文本框中
+        // 仅在有“已成功同步过的表格名称”时预填；否则保持为空
         const targetTableInput = document.getElementById('targetTableInput');
-        if (targetTableInput && targetConfig.tableId) {
-            targetTableInput.value = targetConfig.tableId;
+        if (targetTableInput && configType === 'tableConfig') {
+            const preferName = (targetConfig.metadata && targetConfig.metadata.targetTableName) || targetConfig.targetTableId || '';
+            if (preferName) targetTableInput.value = preferName;
         }
         
     } catch (error) {
@@ -2104,12 +2111,12 @@ async function batchSyncModelConfigs() {
         updateSyncDialogUI('modelConfig');
         
         // 加载目标配置列表
-        await loadTargetConfigs();
-        await ensureTargetSelectOptions();
+        await loadTargetConfigs(null, 'modelConfig');
+        await ensureTargetSelectOptions(null, 'modelConfig');
         const selectM = document.getElementById('targetConfigSelect');
         if (selectM && selectM.options.length > 0 && !selectM.value) {
             selectM.options[0].selected = true;
-            await loadTargetTables(selectM.options[0].value);
+            await loadTargetTables(selectM.options[0].value, 'modelConfig');
         }
         
         // 预填全局默认
@@ -2120,7 +2127,7 @@ async function batchSyncModelConfigs() {
                 const targetTableInput = document.getElementById('targetTableInput');
                 if (targetSelect && globalDefaultM.targetConfigId) {
                     targetSelect.value = globalDefaultM.targetConfigId;
-                    await loadTargetTables(globalDefaultM.targetConfigId);
+                    await loadTargetTables(globalDefaultM.targetConfigId, 'modelConfig');
                 }
                 if (targetTableInput && globalDefaultM.targetTableId) {
                     targetTableInput.value = globalDefaultM.targetTableId;
@@ -2179,23 +2186,32 @@ async function batchSyncTableConfigs() {
         bindSyncDialogEvents(null, 'tableConfig');
         updateSyncDialogUI('tableConfig');
         
-        // 加载目标配置列表
-        await loadTargetConfigs();
-        await ensureTargetSelectOptions();
+        // 加载目标配置列表，优先选中第一个勾选项
+        const preferredId = selectedConfigs[0] || null;
+        await loadTargetConfigs(preferredId, 'tableConfig');
+        await ensureTargetSelectOptions(preferredId, 'tableConfig');
+        // 若仍为空或占位项，直接用存储中的所有配置兜底填充
+        const allTableConfigs = await storageService.loadData('tableConfigs') || [];
         const targetTableInputX = document.getElementById('targetTableInput');
         if (targetTableInputX) targetTableInputX.value = '';
         const selectT = document.getElementById('targetConfigSelect');
         try { console.log('batchSyncTableConfigs targetSelect options length:', selectT ? selectT.options.length : -1); } catch {}
-        if (selectT && (!selectT.options.length || (selectT.options.length && !selectT.options[0].text))) {
-            const fallbackHtml = selectedConfigDetails.map(d => {
-                const text = `${(d.name || '未命名配置')} (${getPlatformName(d.platform)})`;
+        const needFallback = selectT && (selectT.disabled || !selectT.options.length || (selectT.options.length === 1 && !selectT.options[0].value));
+        if (needFallback) {
+            const listForOptions = Array.isArray(allTableConfigs) && allTableConfigs.length ? allTableConfigs : selectedConfigDetails;
+            const fallbackHtml = listForOptions.map(d => {
+                const text = formatTargetOptionText(d, false);
                 return `<option value="${d.id || d.name || ''}">${text}</option>`;
             }).join('');
             selectT.innerHTML = fallbackHtml || '<option value="">暂无配置可用</option>';
+            selectT.disabled = false;
         }
         if (selectT && selectT.options.length > 0 && !selectT.value) {
-            selectT.options[0].selected = true;
-            await loadTargetTables(selectT.options[0].value);
+            selectT.selectedIndex = 0;
+            const firstVal = selectT.options[0].value;
+            if (firstVal) {
+                await loadTargetTables(firstVal, 'tableConfig');
+            }
         }
         
         // 预填全局默认
@@ -2206,7 +2222,7 @@ async function batchSyncTableConfigs() {
                 const targetTableInput = document.getElementById('targetTableInput');
                 if (targetSelect && globalDefaultT.targetConfigId) {
                     targetSelect.value = globalDefaultT.targetConfigId;
-                    await loadTargetTables(globalDefaultT.targetConfigId);
+                    await loadTargetTables(globalDefaultT.targetConfigId, 'tableConfig');
                 }
                 if (targetTableInput && globalDefaultT.targetTableId) {
                     targetTableInput.value = globalDefaultT.targetTableId;
@@ -2263,7 +2279,7 @@ async function syncRewriteRecord(recordId) {
                 const targetSelect = document.getElementById('targetConfigSelect');
                 if (targetSelect) {
                     targetSelect.value = preferTargetConfigId;
-                    await loadTargetTables(preferTargetConfigId);
+                    await loadTargetTables(preferTargetConfigId, 'rewriteRecord');
                 }
             }
             if (preferTable && typeof preferTable === 'string') {
@@ -2279,7 +2295,7 @@ async function syncRewriteRecord(recordId) {
                             const targetSelect = document.getElementById('targetConfigSelect');
                             if (targetSelect) {
                                 targetSelect.value = globalDefault.targetConfigId;
-                                await loadTargetTables(globalDefault.targetConfigId);
+                                await loadTargetTables(globalDefault.targetConfigId, 'rewriteRecord');
                             }
                         }
                         if (globalDefault.targetTableId) {
