@@ -417,6 +417,56 @@ class StorageService {
       console.error('升级记录失败:', error);
     }
   }
+
+  async migrateTargetTableFields() {
+    try {
+      const modelConfigs = await this.loadModelConfigs();
+      const migratedModelConfigs = (modelConfigs || []).map(c => {
+        if (!c.targetTableName && c.targetTableId) {
+          return { ...c, targetTableName: c.targetTableId };
+        }
+        return c;
+      });
+      if (JSON.stringify(modelConfigs) !== JSON.stringify(migratedModelConfigs)) {
+        await this.saveData('modelConfigs', migratedModelConfigs);
+      }
+
+      const tableConfigs = await this.loadTableConfigs();
+      const migratedTableConfigs = (tableConfigs || []).map(c => {
+        if (!c.targetTableName && c.targetTableId) {
+          return { ...c, targetTableName: c.targetTableId };
+        }
+        return c;
+      });
+      if (JSON.stringify(tableConfigs) !== JSON.stringify(migratedTableConfigs)) {
+        await this.saveData('tableConfigs', migratedTableConfigs);
+      }
+
+      const rewriteRecords = await this.loadRewriteRecords();
+      const migratedRewriteRecords = (rewriteRecords || []).map(r => {
+        if (!r.targetTableName && r.targetTableId) {
+          return { ...r, targetTableName: r.targetTableId };
+        }
+        return r;
+      });
+      if (JSON.stringify(rewriteRecords) !== JSON.stringify(migratedRewriteRecords)) {
+        await this.saveData('rewriteRecords', migratedRewriteRecords);
+      }
+
+      const defaultKeys = ['rewriteDefaultTarget', 'modelDefaultTarget', 'tableDefaultTarget'];
+      for (const key of defaultKeys) {
+        const obj = await this.loadData(key);
+        if (obj && typeof obj === 'object') {
+          if (!obj.targetTableName && obj.targetTableId) {
+            const updated = { ...obj, targetTableName: obj.targetTableId };
+            await this.saveData(key, updated);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('迁移字段失败:', error);
+    }
+  }
 }
 
 // 导出存储服务实例

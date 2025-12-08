@@ -40,7 +40,11 @@ const MODEL_DEFAULTS = {
 
 // 等待DOM加载完成
 document.addEventListener('DOMContentLoaded', async function() {
-    // 升级现有记录，添加类型标记
+    try {
+        await storageService.migrateTargetTableFields();
+    } catch (error) {
+        console.error('字段迁移过程中出现错误:', error);
+    }
     try {
         console.log('开始升级现有记录，添加类型标记...');
         await storageService.upgradeExistingRecords();
@@ -1214,6 +1218,8 @@ async function batchSyncRewriteRecords() {
             selectR.options[0].selected = true;
             await loadTargetTables(selectR.options[0].value, 'rewriteRecord');
         }
+        const targetTableInputR = document.getElementById('targetTableInput');
+        if (targetTableInputR) targetTableInputR.value = '';
         // 优先预填改写功能标签的全局默认目标
         try {
             const globalDefault = await storageService.loadData('rewriteDefaultTarget');
@@ -1224,8 +1230,9 @@ async function batchSyncRewriteRecords() {
                     targetSelect.value = globalDefault.targetConfigId;
                     await loadTargetTables(globalDefault.targetConfigId, 'rewriteRecord');
                 }
-                if (targetTableInput && globalDefault.targetTableId) {
-                    targetTableInput.value = globalDefault.targetTableId;
+                const valR = globalDefault.targetTableName || globalDefault.targetTableId;
+                if (targetTableInput && valR) {
+                    targetTableInput.value = valR;
                 }
             }
         } catch (e) {
@@ -1815,7 +1822,7 @@ async function showSyncDialog(configId) {
         // 记录级别优先的记忆
         const targetSelectA = document.getElementById('targetConfigSelect');
         const recordTargetIdA = (config && config.metadata && config.metadata.lastTargetConfigId) || '';
-        const recordTableA = (config && config.metadata && config.metadata.targetTableName) || (config && config.targetTableId) || '';
+        const recordTableA = (config && config.metadata && config.metadata.targetTableName) || (config && config.targetTableName) || (config && config.targetTableId) || '';
         if (recordTargetIdA && targetSelectA) {
             const hasOption = Array.from(targetSelectA.options || []).some(o => o.value === recordTargetIdA);
             if (hasOption) {
@@ -1837,8 +1844,9 @@ async function showSyncDialog(configId) {
                         await loadTargetTables(globalDefaultA.targetConfigId, 'tableConfig');
                     }
                 }
-                if (globalDefaultA.targetTableId) {
-                    targetTableInputA.value = globalDefaultA.targetTableId;
+                const valA = globalDefaultA.targetTableName || globalDefaultA.targetTableId;
+                if (valA) {
+                    targetTableInputA.value = valA;
                 }
             }
         }
@@ -1884,7 +1892,7 @@ async function showModelSyncDialog(configId) {
         // 记录级别优先的记忆
         const targetSelectB = document.getElementById('targetConfigSelect');
         const recordTargetIdB = (config && config.metadata && config.metadata.lastTargetConfigId) || '';
-        const recordTableB = (config && config.metadata && config.metadata.targetTableName) || (config && config.targetTableId) || '';
+        const recordTableB = (config && config.metadata && config.metadata.targetTableName) || (config && config.targetTableName) || (config && config.targetTableId) || '';
         if (recordTargetIdB && targetSelectB) {
             const hasOption = Array.from(targetSelectB.options || []).some(o => o.value === recordTargetIdB);
             if (hasOption) {
@@ -1906,8 +1914,9 @@ async function showModelSyncDialog(configId) {
                         await loadTargetTables(globalDefaultB.targetConfigId, 'modelConfig');
                     }
                 }
-                if (globalDefaultB.targetTableId) {
-                    targetTableInputB.value = globalDefaultB.targetTableId;
+                const valB = globalDefaultB.targetTableName || globalDefaultB.targetTableId;
+                if (valB) {
+                    targetTableInputB.value = valB;
                 }
             }
         }
@@ -2059,7 +2068,7 @@ async function loadTargetTables(targetConfigId, configType) {
         // 仅在有“已成功同步过的表格名称”时预填；否则保持为空
         const targetTableInput = document.getElementById('targetTableInput');
         if (targetTableInput && configType === 'tableConfig') {
-            const preferName = (targetConfig.metadata && targetConfig.metadata.targetTableName) || targetConfig.targetTableId || '';
+            const preferName = (targetConfig.metadata && targetConfig.metadata.targetTableName) || targetConfig.targetTableName || targetConfig.targetTableId || '';
             if (preferName) targetTableInput.value = preferName;
         }
         
@@ -2118,6 +2127,8 @@ async function batchSyncModelConfigs() {
             selectM.options[0].selected = true;
             await loadTargetTables(selectM.options[0].value, 'modelConfig');
         }
+        const targetTableInputM = document.getElementById('targetTableInput');
+        if (targetTableInputM) targetTableInputM.value = '';
         
         // 预填全局默认
         try {
@@ -2129,8 +2140,9 @@ async function batchSyncModelConfigs() {
                     targetSelect.value = globalDefaultM.targetConfigId;
                     await loadTargetTables(globalDefaultM.targetConfigId, 'modelConfig');
                 }
-                if (targetTableInput && globalDefaultM.targetTableId) {
-                    targetTableInput.value = globalDefaultM.targetTableId;
+                const valM = globalDefaultM.targetTableName || globalDefaultM.targetTableId;
+                if (targetTableInput && valM) {
+                    targetTableInput.value = valM;
                 }
             }
         } catch {}
@@ -2224,8 +2236,9 @@ async function batchSyncTableConfigs() {
                     targetSelect.value = globalDefaultT.targetConfigId;
                     await loadTargetTables(globalDefaultT.targetConfigId, 'tableConfig');
                 }
-                if (targetTableInput && globalDefaultT.targetTableId) {
-                    targetTableInput.value = globalDefaultT.targetTableId;
+                const valT = globalDefaultT.targetTableName || globalDefaultT.targetTableId;
+                if (targetTableInput && valT) {
+                    targetTableInput.value = valT;
                 }
             }
         } catch {}
@@ -2273,7 +2286,7 @@ async function syncRewriteRecord(recordId) {
         if (targetTableInput) {
             targetTableInput.value = '';
             // 1) 先使用记录级别偏好（优先）
-            const preferTable = record.metadata?.targetTableName || record.targetTableId || '';
+            const preferTable = record.metadata?.targetTableName || record.targetTableName || record.targetTableId || '';
             const preferTargetConfigId = record.metadata?.lastTargetConfigId || '';
             if (preferTargetConfigId) {
                 const targetSelect = document.getElementById('targetConfigSelect');
@@ -2298,8 +2311,9 @@ async function syncRewriteRecord(recordId) {
                                 await loadTargetTables(globalDefault.targetConfigId, 'rewriteRecord');
                             }
                         }
-                        if (globalDefault.targetTableId) {
-                            targetTableInput.value = globalDefault.targetTableId;
+                        const valR = globalDefault.targetTableName || globalDefault.targetTableId;
+                        if (valR) {
+                            targetTableInput.value = valR;
                         }
                     }
                 } catch (e) {
@@ -2517,7 +2531,7 @@ async function startSync(configId) {
                                 if (idx >= 0) {
                                     const updated = {
                                         ...all[idx],
-                                        targetTableId: targetTableName,
+                                        targetTableName: targetTableName,
                                         updatedAt: new Date().toISOString(),
                                         metadata: {
                                             ...(all[idx].metadata || {}),
@@ -2530,7 +2544,7 @@ async function startSync(configId) {
                                 }
                                 await storageService.saveData('modelDefaultTarget', {
                                     targetConfigId: targetConfig.id,
-                                    targetTableId: targetTableName,
+                                    targetTableName: targetTableName,
                                     savedAt: new Date().toISOString()
                                 });
                             } catch (e) {
@@ -2543,7 +2557,7 @@ async function startSync(configId) {
                                 if (idx >= 0) {
                                     const updated = {
                                         ...all[idx],
-                                        targetTableId: targetTableName,
+                                        targetTableName: targetTableName,
                                         updatedAt: new Date().toISOString(),
                                         metadata: {
                                             ...(all[idx].metadata || {}),
@@ -2556,11 +2570,31 @@ async function startSync(configId) {
                                 }
                                 await storageService.saveData('tableDefaultTarget', {
                                     targetConfigId: targetConfig.id,
-                                    targetTableId: targetTableName,
+                                    targetTableName: targetTableName,
                                     savedAt: new Date().toISOString()
                                 });
                             } catch (e) {
                                 console.warn('批量保存表格默认目标失败:', e.message);
+                            }
+                        } else if (configType === 'rewriteRecord') {
+                            try {
+                                const updates = {
+                                    targetTableName: targetTableName,
+                                    lastSyncAt: new Date().toISOString(),
+                                    metadata: {
+                                        ...(sourceConfig.metadata || {}),
+                                        lastTargetConfigId: targetConfig.id,
+                                        targetTableName: targetTableName
+                                    }
+                                };
+                                await storageService.editRewriteRecord(sourceConfig.name, updates);
+                                await storageService.saveData('rewriteDefaultTarget', {
+                                    targetConfigId: targetConfig.id,
+                                    targetTableName: targetTableName,
+                                    savedAt: new Date().toISOString()
+                                });
+                            } catch (e) {
+                                console.warn('批量保存改写默认目标失败:', e.message);
                             }
                         }
                     } catch (error) {
@@ -2713,7 +2747,7 @@ async function startSync(configId) {
                 if (configType === 'rewriteRecord') {
                     try {
                         const updates = {
-                            targetTableId: targetTableName,
+                            targetTableName: targetTableName,
                             lastSyncAt: new Date().toISOString(),
                             metadata: {
                                 ...(sourceConfig.metadata || {}),
@@ -2725,7 +2759,7 @@ async function startSync(configId) {
                         // 同时保存为改写功能标签的全局默认
                         await storageService.saveData('rewriteDefaultTarget', {
                             targetConfigId: targetConfig.id,
-                            targetTableId: targetTableName,
+                            targetTableName: targetTableName,
                             savedAt: new Date().toISOString()
                         });
                     } catch (persistError) {
@@ -2739,7 +2773,7 @@ async function startSync(configId) {
                         if (idx >= 0) {
                             const updated = {
                                 ...all[idx],
-                                targetTableId: targetTableName,
+                                targetTableName: targetTableName,
                                 updatedAt: new Date().toISOString(),
                                 metadata: {
                                     ...(all[idx].metadata || {}),
@@ -2752,7 +2786,7 @@ async function startSync(configId) {
                         }
                         await storageService.saveData('modelDefaultTarget', {
                             targetConfigId: targetConfig.id,
-                            targetTableId: targetTableName,
+                            targetTableName: targetTableName,
                             savedAt: new Date().toISOString()
                         });
                     } catch (e) {
@@ -2766,7 +2800,7 @@ async function startSync(configId) {
                         if (idx >= 0) {
                             const updated = {
                                 ...all[idx],
-                                targetTableId: targetTableName,
+                                targetTableName: targetTableName,
                                 updatedAt: new Date().toISOString(),
                                 metadata: {
                                     ...(all[idx].metadata || {}),
@@ -2779,7 +2813,7 @@ async function startSync(configId) {
                         }
                         await storageService.saveData('tableDefaultTarget', {
                             targetConfigId: targetConfig.id,
-                            targetTableId: targetTableName,
+                            targetTableName: targetTableName,
                             savedAt: new Date().toISOString()
                         });
                     } catch (e) {
