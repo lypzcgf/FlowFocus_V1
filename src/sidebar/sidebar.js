@@ -1204,9 +1204,33 @@ async function batchSyncRewriteRecords() {
         
         // 绑定对话框事件监听器 - 传递正确的配置类型
         bindSyncDialogEvents(null, 'rewriteRecord');
+        updateSyncDialogUI('rewriteRecord');
         
         // 加载目标配置列表
         await loadTargetConfigs();
+        await ensureTargetSelectOptions();
+        const selectR = document.getElementById('targetConfigSelect');
+        if (selectR && selectR.options.length > 0 && !selectR.value) {
+            selectR.options[0].selected = true;
+            await loadTargetTables(selectR.options[0].value);
+        }
+        // 优先预填改写功能标签的全局默认目标
+        try {
+            const globalDefault = await storageService.loadData('rewriteDefaultTarget');
+            if (globalDefault && typeof globalDefault === 'object') {
+                const targetSelect = document.getElementById('targetConfigSelect');
+                const targetTableInput = document.getElementById('targetTableInput');
+                if (targetSelect && globalDefault.targetConfigId) {
+                    targetSelect.value = globalDefault.targetConfigId;
+                    await loadTargetTables(globalDefault.targetConfigId);
+                }
+                if (targetTableInput && globalDefault.targetTableId) {
+                    targetTableInput.value = globalDefault.targetTableId;
+                }
+            }
+        } catch (e) {
+            console.warn('读取改写默认目标失败:', e.message);
+        }
         
         // 显示对话框
         syncDialog.style.display = 'block';
@@ -1762,24 +1786,61 @@ async function showSyncDialog(configId) {
         const configs = await storageService.loadData('tableConfigs') || [];
         const config = configs.find(c => c.id === configId);
         
-        if (!config) {
-            showAlert('未找到配置信息', 'warning');
-            return;
+
+        
+        // 更新对话框信息（容错：config可能为空）
+        const selectedRecordsCountEl = document.getElementById('selectedRecordsCount');
+        const selectedConfigNamesEl = document.getElementById('selectedConfigNames');
+        if (selectedRecordsCountEl) selectedRecordsCountEl.textContent = '共 1 条';
+        const configNameSafe = (config && config.name) ? config.name : '未命名配置';
+        if (selectedConfigNamesEl) selectedConfigNamesEl.textContent = configNameSafe;
+        
+        // 绑定事件并更新文案（顺序与改写标签一致）
+        bindSyncDialogEvents(configId, 'tableConfig');
+        updateSyncDialogUI('tableConfig');
+        
+        // 加载可用的目标配置（不传当前ID）
+        await loadTargetConfigs();
+        await ensureTargetSelectOptions();
+        
+        // 清空上次填写的目标表格，避免误操作
+        const targetTableInputA = document.getElementById('targetTableInput');
+        if (targetTableInputA) targetTableInputA.value = '';
+
+        // 记录级别优先的记忆
+        const targetSelectA = document.getElementById('targetConfigSelect');
+        const recordTargetIdA = (config && config.metadata && config.metadata.lastTargetConfigId) || '';
+        const recordTableA = (config && config.metadata && config.metadata.targetTableName) || (config && config.targetTableId) || '';
+        if (recordTargetIdA && targetSelectA) {
+            const hasOption = Array.from(targetSelectA.options || []).some(o => o.value === recordTargetIdA);
+            if (hasOption) {
+                targetSelectA.value = recordTargetIdA;
+                await loadTargetTables(recordTargetIdA);
+            }
+        }
+        if (recordTableA && targetTableInputA) {
+            targetTableInputA.value = recordTableA;
+        }
+        // 全局默认回退
+        if (targetTableInputA && !targetTableInputA.value) {
+            const globalDefaultA = await storageService.loadData('tableDefaultTarget');
+            if (globalDefaultA) {
+                if (targetSelectA && globalDefaultA.targetConfigId) {
+                    const hasOpt = Array.from(targetSelectA.options || []).some(o => o.value === globalDefaultA.targetConfigId);
+                    if (hasOpt) {
+                        targetSelectA.value = globalDefaultA.targetConfigId;
+                        await loadTargetTables(globalDefaultA.targetConfigId);
+                    }
+                }
+                if (globalDefaultA.targetTableId) {
+                    targetTableInputA.value = globalDefaultA.targetTableId;
+                }
+            }
         }
         
-        // 更新对话框信息
-        document.getElementById('selectedRecordsCount').textContent = '共 1 条';
-        document.getElementById('selectedConfigNames').textContent = config.name;
-        
-        // 加载可用的目标配置
-        await loadTargetConfigs(configId);
-        
-        // 显示对话框
+        // 显示对话框（最后显示）
         const modal = document.getElementById('syncDialog');
         modal.style.display = 'block';
-        
-        // 绑定对话框事件
-        bindSyncDialogEvents(configId, 'tableConfig');
         
     } catch (error) {
         console.error('显示同步对话框失败:', error);
@@ -1794,24 +1855,61 @@ async function showModelSyncDialog(configId) {
         const configs = await storageService.loadData('modelConfigs') || [];
         const config = configs.find(c => c.id === configId);
         
-        if (!config) {
-            showAlert('未找到配置信息', 'warning');
-            return;
+
+        
+        // 更新对话框信息（容错：config可能为空）
+        const selectedRecordsCountEl = document.getElementById('selectedRecordsCount');
+        const selectedConfigNamesEl = document.getElementById('selectedConfigNames');
+        if (selectedRecordsCountEl) selectedRecordsCountEl.textContent = '共 1 条';
+        const configNameSafe = (config && config.name) ? config.name : '未命名配置';
+        if (selectedConfigNamesEl) selectedConfigNamesEl.textContent = configNameSafe;
+        
+        // 绑定事件并更新文案（顺序与改写标签一致）
+        bindSyncDialogEvents(configId, 'modelConfig');
+        updateSyncDialogUI('modelConfig');
+        
+        // 加载可用的目标配置（不传当前ID）
+        await loadTargetConfigs();
+        await ensureTargetSelectOptions();
+        
+        // 清空上次填写的目标表格，避免误操作
+        const targetTableInputB = document.getElementById('targetTableInput');
+        if (targetTableInputB) targetTableInputB.value = '';
+
+        // 记录级别优先的记忆
+        const targetSelectB = document.getElementById('targetConfigSelect');
+        const recordTargetIdB = (config && config.metadata && config.metadata.lastTargetConfigId) || '';
+        const recordTableB = (config && config.metadata && config.metadata.targetTableName) || (config && config.targetTableId) || '';
+        if (recordTargetIdB && targetSelectB) {
+            const hasOption = Array.from(targetSelectB.options || []).some(o => o.value === recordTargetIdB);
+            if (hasOption) {
+                targetSelectB.value = recordTargetIdB;
+                await loadTargetTables(recordTargetIdB);
+            }
+        }
+        if (recordTableB && targetTableInputB) {
+            targetTableInputB.value = recordTableB;
+        }
+        // 全局默认回退
+        if (targetTableInputB && !targetTableInputB.value) {
+            const globalDefaultB = await storageService.loadData('modelDefaultTarget');
+            if (globalDefaultB) {
+                if (targetSelectB && globalDefaultB.targetConfigId) {
+                    const hasOpt = Array.from(targetSelectB.options || []).some(o => o.value === globalDefaultB.targetConfigId);
+                    if (hasOpt) {
+                        targetSelectB.value = globalDefaultB.targetConfigId;
+                        await loadTargetTables(globalDefaultB.targetConfigId);
+                    }
+                }
+                if (globalDefaultB.targetTableId) {
+                    targetTableInputB.value = globalDefaultB.targetTableId;
+                }
+            }
         }
         
-        // 更新对话框信息
-        document.getElementById('selectedRecordsCount').textContent = '共 1 条';
-        document.getElementById('selectedConfigNames').textContent = config.name;
-        
-        // 加载可用的目标配置
-        await loadTargetConfigs(configId);
-        
-        // 显示对话框
+        // 显示对话框（最后显示）
         const modal = document.getElementById('syncDialog');
         modal.style.display = 'block';
-        
-        // 绑定对话框事件
-        bindSyncDialogEvents(configId, 'modelConfig');
         
     } catch (error) {
         console.error('显示同步对话框失败:', error);
@@ -1822,33 +1920,40 @@ async function showModelSyncDialog(configId) {
 // 加载目标配置列表
 async function loadTargetConfigs(currentConfigId) {
     try {
-        const configs = await storageService.loadData('tableConfigs') || [];
+        const rawConfigs = await storageService.loadData('tableConfigs') || [];
+        const configs = Array.isArray(rawConfigs) ? rawConfigs : [];
         const targetSelect = document.getElementById('targetConfigSelect');
-    
+        try { console.log('loadTargetConfigs: configs length =', configs.length); } catch {}
+
         // 先清空下拉框，避免重复添加选项
         targetSelect.innerHTML = '';
-    
-        // 添加所有配置选项（包括当前配置）
-        configs.forEach(config => {
-            const option = document.createElement('option');
-            option.value = config.id;
-            option.textContent = `${config.name} (${getPlatformName(config.platform)})`;
-            
-            // 如果是当前配置，添加特殊标记
-            if (config.id === currentConfigId) {
-                option.textContent += ' (当前配置)';
-            }
-            
-            targetSelect.appendChild(option);
-        });
-        
-        // 如果没有配置可用
-        if (targetSelect.options.length === 0) {
-            targetSelect.innerHTML = '<option value="">暂无配置可用</option>';
+        targetSelect.disabled = false;
+
+        // 使用innerHTML一次性填充选项，避免某些环境下appendChild不生效
+        const optionsHtml = configs.map(config => {
+            const isCurrent = config.id === currentConfigId;
+            const text = `${(config.name || '未命名配置')} (${getPlatformName(config.platform)})${isCurrent ? ' (当前配置)' : ''}`;
+            return `<option value="${config.id || ''}" ${isCurrent ? 'selected' : ''}>${text}</option>`;
+        }).join('');
+        targetSelect.innerHTML = optionsHtml;
+        try { console.log('loadTargetConfigs: options injected length =', targetSelect.options.length); } catch {}
+        if (targetSelect.options.length > 0 && targetSelect.selectedIndex < 0) {
+            targetSelect.selectedIndex = 0;
         }
-        else {
-            // 加载当前配置的表格列表
-            await loadTargetTables(currentConfigId);
+
+        // 如果没有配置可用
+        if (!targetSelect.options.length) {
+            targetSelect.innerHTML = '<option value="">暂无配置可用</option>';
+            targetSelect.disabled = true;
+            return;
+        }
+
+        // 选择一个有效的配置加载表格列表
+        const selectedValue = targetSelect.value || (targetSelect.options[0]?.value || '');
+        if (selectedValue) {
+            targetSelect.value = selectedValue;
+            await loadTargetTables(selectedValue);
+            try { targetSelect.dispatchEvent(new Event('change')); } catch {}
         }
 
         
@@ -1856,6 +1961,23 @@ async function loadTargetConfigs(currentConfigId) {
     } catch (error) {
         console.error('加载目标配置失败:', error);
         showAlert('加载目标配置失败: ' + error.message, 'error');
+    }
+}
+
+async function ensureTargetSelectOptions(currentConfigId) {
+    const targetSelect = document.getElementById('targetConfigSelect');
+    if (!targetSelect) return;
+    const needReload = !targetSelect.options.length || (targetSelect.options.length === 1 && !targetSelect.options[0].value);
+    if (needReload) {
+        await loadTargetConfigs(currentConfigId);
+    }
+    // 若仍未选中任何值，强制选中第一项并加载其表格
+    if (targetSelect.options.length > 0 && (!targetSelect.value || targetSelect.selectedIndex < 0)) {
+        targetSelect.selectedIndex = 0;
+        const v = targetSelect.options[0].value;
+        if (v) {
+            await loadTargetTables(v);
+        }
     }
 }
 
@@ -1930,8 +2052,8 @@ async function loadTargetTables(targetConfigId) {
         
         // 如果配置中有表格名称，可以预填到文本框中
         const targetTableInput = document.getElementById('targetTableInput');
-        if (targetTableInput && targetConfig.tableName) {
-            targetTableInput.value = targetConfig.tableName;
+        if (targetTableInput && targetConfig.tableId) {
+            targetTableInput.value = targetConfig.tableId;
         }
         
     } catch (error) {
@@ -1978,11 +2100,37 @@ async function batchSyncModelConfigs() {
         // 保存选中的配置ID到对话框元素中，供确认按钮使用
         confirmSyncBtn.setAttribute('data-selected-configs', JSON.stringify(selectedConfigs));
         
-        // 绑定对话框事件监听器，指定配置类型为modelConfig
         bindSyncDialogEvents(null, 'modelConfig');
+        updateSyncDialogUI('modelConfig');
         
-        // 显示对话框
+        // 加载目标配置列表
+        await loadTargetConfigs();
+        await ensureTargetSelectOptions();
+        const selectM = document.getElementById('targetConfigSelect');
+        if (selectM && selectM.options.length > 0 && !selectM.value) {
+            selectM.options[0].selected = true;
+            await loadTargetTables(selectM.options[0].value);
+        }
+        
+        // 预填全局默认
+        try {
+            const globalDefaultM = await storageService.loadData('modelDefaultTarget');
+            if (globalDefaultM) {
+                const targetSelect = document.getElementById('targetConfigSelect');
+                const targetTableInput = document.getElementById('targetTableInput');
+                if (targetSelect && globalDefaultM.targetConfigId) {
+                    targetSelect.value = globalDefaultM.targetConfigId;
+                    await loadTargetTables(globalDefaultM.targetConfigId);
+                }
+                if (targetTableInput && globalDefaultM.targetTableId) {
+                    targetTableInput.value = globalDefaultM.targetTableId;
+                }
+            }
+        } catch {}
+
+        // 显示对话框（最后显示，顺序与单条一致）
         syncDialog.style.display = 'block';
+        
         
     } catch (error) {
         console.error('批量同步大模型配置失败:', error);
@@ -2028,10 +2176,45 @@ async function batchSyncTableConfigs() {
         // 保存选中的配置ID到对话框元素中，供确认按钮使用
         confirmSyncBtn.setAttribute('data-selected-configs', JSON.stringify(selectedConfigs));
         
-        // 绑定对话框事件监听器
-        bindSyncDialogEvents(recordId, 'rewriteRecord');
+        bindSyncDialogEvents(null, 'tableConfig');
+        updateSyncDialogUI('tableConfig');
         
-        // 显示对话框
+        // 加载目标配置列表
+        await loadTargetConfigs();
+        await ensureTargetSelectOptions();
+        const targetTableInputX = document.getElementById('targetTableInput');
+        if (targetTableInputX) targetTableInputX.value = '';
+        const selectT = document.getElementById('targetConfigSelect');
+        try { console.log('batchSyncTableConfigs targetSelect options length:', selectT ? selectT.options.length : -1); } catch {}
+        if (selectT && (!selectT.options.length || (selectT.options.length && !selectT.options[0].text))) {
+            const fallbackHtml = selectedConfigDetails.map(d => {
+                const text = `${(d.name || '未命名配置')} (${getPlatformName(d.platform)})`;
+                return `<option value="${d.id || d.name || ''}">${text}</option>`;
+            }).join('');
+            selectT.innerHTML = fallbackHtml || '<option value="">暂无配置可用</option>';
+        }
+        if (selectT && selectT.options.length > 0 && !selectT.value) {
+            selectT.options[0].selected = true;
+            await loadTargetTables(selectT.options[0].value);
+        }
+        
+        // 预填全局默认
+        try {
+            const globalDefaultT = await storageService.loadData('tableDefaultTarget');
+            if (globalDefaultT) {
+                const targetSelect = document.getElementById('targetConfigSelect');
+                const targetTableInput = document.getElementById('targetTableInput');
+                if (targetSelect && globalDefaultT.targetConfigId) {
+                    targetSelect.value = globalDefaultT.targetConfigId;
+                    await loadTargetTables(globalDefaultT.targetConfigId);
+                }
+                if (targetTableInput && globalDefaultT.targetTableId) {
+                    targetTableInput.value = globalDefaultT.targetTableId;
+                }
+            }
+        } catch {}
+        
+        // 显示对话框（最后显示，顺序与单条一致）
         syncDialog.style.display = 'block';
         
     } catch (error) {
@@ -2063,18 +2246,61 @@ async function syncRewriteRecord(recordId) {
         dialogTitle.textContent = '改写工作信息同步设置';
         selectedRecordsCount.textContent = '共 1 条';
         selectedConfigNames.textContent = record.name;
-        
+
         // 保存选中的记录到对话框元素中 - 使用记录ID，与其他配置类型保持一致
         confirmSyncBtn.removeAttribute('data-selected-configs');
         confirmSyncBtn.setAttribute('data-record-id', recordId);
         confirmSyncBtn.setAttribute('data-config-type', 'rewriteRecord');
-        
+
+        // 清空并按需要预填改写功能相关表格ID
+        const targetTableInput = document.getElementById('targetTableInput');
+        if (targetTableInput) {
+            targetTableInput.value = '';
+            // 1) 先使用记录级别偏好（优先）
+            const preferTable = record.metadata?.targetTableName || record.targetTableId || '';
+            const preferTargetConfigId = record.metadata?.lastTargetConfigId || '';
+            if (preferTargetConfigId) {
+                const targetSelect = document.getElementById('targetConfigSelect');
+                if (targetSelect) {
+                    targetSelect.value = preferTargetConfigId;
+                    await loadTargetTables(preferTargetConfigId);
+                }
+            }
+            if (preferTable && typeof preferTable === 'string') {
+                targetTableInput.value = preferTable;
+            }
+
+            // 2) 若记录级别没有，则使用全局默认
+            if (!targetTableInput.value) {
+                try {
+                    const globalDefault = await storageService.loadData('rewriteDefaultTarget');
+                    if (globalDefault && typeof globalDefault === 'object') {
+                        if (globalDefault.targetConfigId) {
+                            const targetSelect = document.getElementById('targetConfigSelect');
+                            if (targetSelect) {
+                                targetSelect.value = globalDefault.targetConfigId;
+                                await loadTargetTables(globalDefault.targetConfigId);
+                            }
+                        }
+                        if (globalDefault.targetTableId) {
+                            targetTableInput.value = globalDefault.targetTableId;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('读取改写默认目标失败:', e.message);
+                }
+            }
+        }
+
         // 绑定对话框事件监听器
         bindSyncDialogEvents(recordId, 'rewriteRecord');
-        
+
         // 加载目标配置列表
         await loadTargetConfigs();
-        
+
+        // 更新文案为改写记录同步
+        updateSyncDialogUI('rewriteRecord');
+
         // 显示对话框
         syncDialog.style.display = 'block';
         
@@ -2106,7 +2332,10 @@ async function startSync(configId) {
     try {
         // 获取目标配置信息
         const targetConfigs = await storageService.loadData('tableConfigs') || [];
-        const targetConfig = targetConfigs.find(c => c.id === targetConfigId);
+        let targetConfig = targetConfigs.find(c => c.id === targetConfigId);
+        if (!targetConfig) {
+            targetConfig = targetConfigs.find(c => c.name === targetConfigId) || targetConfigs.find(c => c.tableId === targetConfigId);
+        }
         
         if (!targetConfig) {
             showAlert('目标配置信息不存在', 'error');
@@ -2263,6 +2492,61 @@ async function startSync(configId) {
                         syncResults.push({ id: sourceConfig.id, name: sourceConfig.name, success: true });
                         successCount++;
                         console.log(`配置 ${sourceConfig.name} 同步成功`, result);
+
+                        // 批量同步成功后，记录默认目标（模型/表格）与记录级别记忆
+                        if (configType === 'modelConfig') {
+                            try {
+                                const all = await storageService.loadData('modelConfigs') || [];
+                                const idx = all.findIndex(c => c.id === sourceConfig.id);
+                                if (idx >= 0) {
+                                    const updated = {
+                                        ...all[idx],
+                                        targetTableId: targetTableName,
+                                        updatedAt: new Date().toISOString(),
+                                        metadata: {
+                                            ...(all[idx].metadata || {}),
+                                            lastTargetConfigId: targetConfig.id,
+                                            targetTableName: targetTableName
+                                        }
+                                    };
+                                    all[idx] = updated;
+                                    await storageService.saveData('modelConfigs', all);
+                                }
+                                await storageService.saveData('modelDefaultTarget', {
+                                    targetConfigId: targetConfig.id,
+                                    targetTableId: targetTableName,
+                                    savedAt: new Date().toISOString()
+                                });
+                            } catch (e) {
+                                console.warn('批量保存模型默认目标失败:', e.message);
+                            }
+                        } else if (configType === 'tableConfig') {
+                            try {
+                                const all = await storageService.loadData('tableConfigs') || [];
+                                const idx = all.findIndex(c => c.id === sourceConfig.id);
+                                if (idx >= 0) {
+                                    const updated = {
+                                        ...all[idx],
+                                        targetTableId: targetTableName,
+                                        updatedAt: new Date().toISOString(),
+                                        metadata: {
+                                            ...(all[idx].metadata || {}),
+                                            lastTargetConfigId: targetConfig.id,
+                                            targetTableName: targetTableName
+                                        }
+                                    };
+                                    all[idx] = updated;
+                                    await storageService.saveData('tableConfigs', all);
+                                }
+                                await storageService.saveData('tableDefaultTarget', {
+                                    targetConfigId: targetConfig.id,
+                                    targetTableId: targetTableName,
+                                    savedAt: new Date().toISOString()
+                                });
+                            } catch (e) {
+                                console.warn('批量保存表格默认目标失败:', e.message);
+                            }
+                        }
                     } catch (error) {
                         syncResults.push({ id: sourceConfig.id, name: sourceConfig.name, success: false, error: error.message });
                         failCount++;
@@ -2408,6 +2692,84 @@ async function startSync(configId) {
                     configTypeName = '多维表格';
                 }
                 showAlert(`${configTypeName}记录同步成功: ${sourceConfig.name} → ${targetConfig.name} (表格: ${targetTableName})`, 'success');
+
+                // 记录改写记录的最近目标表格，便于下次预填
+                if (configType === 'rewriteRecord') {
+                    try {
+                        const updates = {
+                            targetTableId: targetTableName,
+                            lastSyncAt: new Date().toISOString(),
+                            metadata: {
+                                ...(sourceConfig.metadata || {}),
+                                lastTargetConfigId: targetConfig.id,
+                                targetTableName: targetTableName
+                            }
+                        };
+                        await storageService.editRewriteRecord(sourceConfig.name, updates);
+                        // 同时保存为改写功能标签的全局默认
+                        await storageService.saveData('rewriteDefaultTarget', {
+                            targetConfigId: targetConfig.id,
+                            targetTableId: targetTableName,
+                            savedAt: new Date().toISOString()
+                        });
+                    } catch (persistError) {
+                        console.warn('保存改写记录最近目标表格失败:', persistError.message);
+                    }
+                }
+                else if (configType === 'modelConfig') {
+                    try {
+                        const all = await storageService.loadData('modelConfigs') || [];
+                        const idx = all.findIndex(c => c.id === sourceConfig.id);
+                        if (idx >= 0) {
+                            const updated = {
+                                ...all[idx],
+                                targetTableId: targetTableName,
+                                updatedAt: new Date().toISOString(),
+                                metadata: {
+                                    ...(all[idx].metadata || {}),
+                                    lastTargetConfigId: targetConfig.id,
+                                    targetTableName: targetTableName
+                                }
+                            };
+                            all[idx] = updated;
+                            await storageService.saveData('modelConfigs', all);
+                        }
+                        await storageService.saveData('modelDefaultTarget', {
+                            targetConfigId: targetConfig.id,
+                            targetTableId: targetTableName,
+                            savedAt: new Date().toISOString()
+                        });
+                    } catch (e) {
+                        console.warn('保存模型默认目标失败:', e.message);
+                    }
+                }
+                else if (configType === 'tableConfig') {
+                    try {
+                        const all = await storageService.loadData('tableConfigs') || [];
+                        const idx = all.findIndex(c => c.id === sourceConfig.id);
+                        if (idx >= 0) {
+                            const updated = {
+                                ...all[idx],
+                                targetTableId: targetTableName,
+                                updatedAt: new Date().toISOString(),
+                                metadata: {
+                                    ...(all[idx].metadata || {}),
+                                    lastTargetConfigId: targetConfig.id,
+                                    targetTableName: targetTableName
+                                }
+                            };
+                            all[idx] = updated;
+                            await storageService.saveData('tableConfigs', all);
+                        }
+                        await storageService.saveData('tableDefaultTarget', {
+                            targetConfigId: targetConfig.id,
+                            targetTableId: targetTableName,
+                            savedAt: new Date().toISOString()
+                        });
+                    } catch (e) {
+                        console.warn('保存表格默认目标失败:', e.message);
+                    }
+                }
                 
                 // 清除单条同步标记
                 syncBtn.removeAttribute('data-record-id');
@@ -2428,5 +2790,39 @@ async function startSync(configId) {
     } catch (error) {
         console.error('开始同步失败:', error);
         showAlert('开始同步失败: ' + error.message, 'error');
+    }
+}
+
+// 根据配置类型更新同步对话框的文案
+function updateSyncDialogUI(configType) {
+    const titleEl = document.getElementById('syncDialogTitle');
+    const infoLabels = document.querySelectorAll('#syncDialog .modal-body .sync-info .info-item label');
+    const targetConfigLabel = document.querySelector('label[for="targetConfigSelect"]');
+    const targetTableLabel = document.querySelector('label[for="targetTableInput"]');
+
+    if (configType === 'modelConfig') {
+        if (titleEl) titleEl.textContent = '大模型配置信息同步设置';
+        if (infoLabels && infoLabels.length >= 2) {
+            infoLabels[0].textContent = '选中的同步记录数:';
+            infoLabels[1].textContent = '选中的模型配置名称:';
+        }
+        if (targetConfigLabel) targetConfigLabel.textContent = '同步到的多维表格链接:';
+        if (targetTableLabel) targetTableLabel.textContent = '同步到的多维表格表格:';
+    } else if (configType === 'rewriteRecord') {
+        if (titleEl) titleEl.textContent = '改写工作信息同步设置';
+        if (infoLabels && infoLabels.length >= 2) {
+            infoLabels[0].textContent = '选中的同步记录数:';
+            infoLabels[1].textContent = '选中的改写记录名称:';
+        }
+        if (targetConfigLabel) targetConfigLabel.textContent = '配置同步目的链接:';
+        if (targetTableLabel) targetTableLabel.textContent = '配置同步目的表格:';
+    } else {
+        if (titleEl) titleEl.textContent = '多维表格配置信息同步设置';
+        if (infoLabels && infoLabels.length >= 2) {
+            infoLabels[0].textContent = '选中的同步记录数:';
+            infoLabels[1].textContent = '选中的记录配置名称:';
+        }
+        if (targetConfigLabel) targetConfigLabel.textContent = '配置同步目的链接:';
+        if (targetTableLabel) targetTableLabel.textContent = '配置同步目的表格:';
     }
 }

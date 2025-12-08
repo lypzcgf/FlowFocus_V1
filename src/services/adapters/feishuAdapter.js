@@ -11,10 +11,8 @@ class FeishuAdapter extends BaseAdapter {
     super(config);
     this.appId = config.appId;
     this.appSecret = config.appSecret;
-    // 解决参数名称不一致问题：优先使用tableToken，如果不存在则使用tableId
-    this.tableToken = config.tableToken || config.tableId;
-    // 优先使用配置中的tableId，如果不存在则使用默认值
-    this.tableId = config.tableId || 'tblDefault';
+    this.tableToken = this.normalizeAppToken(config.tableToken || config.tableId);
+    this.tableId = this.normalizeTableId(config.tableId) || 'tblDefault';
     this.baseUrl = config.baseUrl || 'https://open.feishu.cn/open-apis/bitable/v1';
     this.authUrl = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
     this.accessToken = null;
@@ -45,7 +43,7 @@ class FeishuAdapter extends BaseAdapter {
    */
   async batchCreateRecords(dataList) {
     try {
-      const url = `${this.baseUrl}/apps/${this.tableToken}/tables/${this.getTableId()}/records/batch_create`;
+      const url = `${this.baseUrl}/apps/${this.normalizeAppToken(this.tableToken)}/tables/${this.getTableId()}/records/batch_create`;
       
       const requestData = {
         records: dataList.map(data => ({
@@ -75,7 +73,7 @@ class FeishuAdapter extends BaseAdapter {
    */
   async batchUpdateRecords(updates) {
     try {
-      const url = `${this.baseUrl}/apps/${this.tableToken}/tables/${this.getTableId()}/records/batch_update`;
+      const url = `${this.baseUrl}/apps/${this.normalizeAppToken(this.tableToken)}/tables/${this.getTableId()}/records/batch_update`;
       
       const requestData = {
         records: updates.map(update => ({
@@ -106,7 +104,7 @@ class FeishuAdapter extends BaseAdapter {
    */
   async batchDeleteRecords(recordIds) {
     try {
-      const url = `${this.baseUrl}/apps/${this.tableToken}/tables/${this.getTableId()}/records/batch_delete`;
+      const url = `${this.baseUrl}/apps/${this.normalizeAppToken(this.tableToken)}/tables/${this.getTableId()}/records/batch_delete`;
       
       const requestData = {
         records: recordIds
@@ -280,6 +278,12 @@ class FeishuAdapter extends BaseAdapter {
       this.appSecret = data.appSecret;
       console.log('已更新飞书适配器的App ID和App Secret');
     }
+    if (data.tableToken) {
+      this.tableToken = this.normalizeAppToken(data.tableToken);
+    }
+    if (data.tableId) {
+      this.tableId = this.normalizeTableId(data.tableId) || this.tableId;
+    }
   }
   
   /**
@@ -290,8 +294,10 @@ class FeishuAdapter extends BaseAdapter {
    * @returns {string} 完整的请求URL
    */
   buildCreateRecordUrl(appToken, tableId) {
-    console.log('飞书API URL构建参数:', { appToken, tableId, appId: this.appId });
-    const url = `${this.baseUrl}/apps/${appToken}/tables/${tableId}/records`;
+    const normToken = this.normalizeAppToken(appToken || this.tableToken);
+    const normTableId = this.normalizeTableId(tableId || this.getTableId());
+    console.log('飞书API URL构建参数:', { appToken: normToken, tableId: normTableId, appId: this.appId });
+    const url = `${this.baseUrl}/apps/${normToken}/tables/${normTableId}/records`;
     console.log('准备创建飞书记录:', { url });
     return url;
   }
@@ -316,6 +322,9 @@ class FeishuAdapter extends BaseAdapter {
     // 根据数据类型处理
     if (data.type === 'modelConfig') {
       return this.prepareModelConfigData(data);
+    }
+    if (data.type === 'tableConfig') {
+      return this.prepareTableConfigData(data);
     }
     
     // 其他类型默认处理
@@ -349,6 +358,34 @@ class FeishuAdapter extends BaseAdapter {
     return {
       fields: {
         '数据集合': JSON.stringify(configData)
+      }
+    };
+  }
+  
+  /**
+   * 准备多维表格配置数据
+   * @private
+   * @param {Object} data - 表格配置数据
+   * @returns {Object} 格式化后的请求数据
+   */
+  prepareTableConfigData(data) {
+    const token = this.normalizeAppToken(data.tableToken || this.tableToken);
+    const tblId = this.normalizeTableId(data.tableId || this.tableId);
+    const created = data.metadata?.createdAt || data.createdAt || new Date().toISOString();
+    const updated = data.metadata?.updatedAt || data.updatedAt || new Date().toISOString();
+    const payload = {
+      '配置名称': data.name || '未命名配置',
+      'App ID': this.appId || '',
+      'App Secret': this.appSecret || '',
+      '多维表格token': token || '',
+      '多维表格ID': tblId || '',
+      '创建时间': DateUtils.format(new Date(created), 'YYYY-MM-DD HH:mm:ss'),
+      '更新时间': DateUtils.format(new Date(updated), 'YYYY-MM-DD HH:mm:ss'),
+      '状态': '正常'
+    };
+    return {
+      fields: {
+        '数据集合': JSON.stringify(payload)
       }
     };
   }
@@ -421,7 +458,7 @@ class FeishuAdapter extends BaseAdapter {
    */
   async updateRecord(recordId, data) {
     try {
-      const url = `${this.baseUrl}/apps/${this.tableToken}/tables/${this.getTableId()}/records/${recordId}`;
+      const url = `${this.baseUrl}/apps/${this.normalizeAppToken(this.tableToken)}/tables/${this.getTableId()}/records/${recordId}`;
       
       const requestData = {
         fields: this.formatDataForFeishu(data)
@@ -449,7 +486,7 @@ class FeishuAdapter extends BaseAdapter {
    */
   async deleteRecord(recordId) {
     try {
-      const url = `${this.baseUrl}/apps/${this.tableToken}/tables/${this.getTableId()}/records/${recordId}`;
+      const url = `${this.baseUrl}/apps/${this.normalizeAppToken(this.tableToken)}/tables/${this.getTableId()}/records/${recordId}`;
       
       const headers = await this.getAuthHeaders();
       
@@ -472,7 +509,7 @@ class FeishuAdapter extends BaseAdapter {
    */
   async getRecords(params = {}) {
     try {
-      const url = `${this.baseUrl}/apps/${this.tableToken}/tables/${this.getTableId()}/records`;
+      const url = `${this.baseUrl}/apps/${this.normalizeAppToken(this.tableToken)}/tables/${this.getTableId()}/records`;
       
       const queryParams = new URLSearchParams();
       if (params.pageSize) queryParams.append('page_size', params.pageSize);
@@ -522,7 +559,7 @@ class FeishuAdapter extends BaseAdapter {
    */
   async getTableInfo() {
     try {
-      const url = `${this.baseUrl}/apps/${this.tableToken}`;
+      const url = `${this.baseUrl}/apps/${this.normalizeAppToken(this.tableToken)}`;
       
       const headers = await this.getAuthHeaders();
       
@@ -549,14 +586,12 @@ class FeishuAdapter extends BaseAdapter {
    */
   async getTables() {
     try {
-      // 检查tableToken是否为空或undefined
       if (!this.tableToken || this.tableToken === 'undefined') {
         this.log('error', '表格Token为空或未定义', { tableToken: this.tableToken });
         throw new Error('配置错误：表格Token为空或未定义，请检查配置');
       }
-      
-      // 根据用户建议，使用包含/tables子路径的API端点
-      const url = `${this.baseUrl}/apps/${this.tableToken}/tables`;
+      const token = this.normalizeAppToken(this.tableToken);
+      const url = `${this.baseUrl}/apps/${token}/tables`;
       
       this.log('debug', '获取表格列表', {
         baseUrl: this.baseUrl,
@@ -602,13 +637,13 @@ class FeishuAdapter extends BaseAdapter {
     } catch (error) {
       // 增强错误信息，添加当前配置的上下文
       const appIdSafe = this.appId ? this.appId.substring(0, 5) + '...' : 'undefined';
-      const tableTokenSafe = this.tableToken ? this.tableToken.substring(0, 5) + '...' : 'undefined';
+      const tableTokenSafe = token ? token.substring(0, 5) + '...' : 'undefined';
       
       const contextError = new Error(`获取表格列表失败，配置信息：appId=${appIdSafe}, tableToken=${tableTokenSafe}, baseUrl=${this.baseUrl}\n错误详情: ${error.message}`);
       contextError.originalError = error;
       contextError.configuration = {
         appId: this.appId,
-        tableToken: this.tableToken,
+        tableToken: token,
         baseUrl: this.baseUrl
       };
       
@@ -624,9 +659,7 @@ class FeishuAdapter extends BaseAdapter {
 
   // 私有方法
   getTableId() {
-    // 修复表格ID获取逻辑，确保返回正确的表格ID
-    // 优先使用配置中的tableId，如果不存在则使用实例变量this.tableId
-    return this.config.tableId || this.tableId || 'tblDefault';
+    return this.normalizeTableId(this.config.tableId) || this.tableId || 'tblDefault';
   }
 
   formatDataForFeishu(data) {
@@ -739,6 +772,31 @@ class FeishuAdapter extends BaseAdapter {
     });
     
     return formattedData;
+  }
+
+  normalizeAppToken(input) {
+    if (!input) return '';
+    const str = String(input);
+    if (/^https?:\/\//i.test(str)) {
+      const m1 = str.match(/\/base\/([A-Za-z0-9]+)/);
+      if (m1 && m1[1]) return m1[1];
+      const m2 = str.match(/\/apps?\/([A-Za-z0-9]+)/);
+      if (m2 && m2[1]) return m2[1];
+      const m3 = str.match(/[A-Za-z0-9]{20,}/);
+      if (m3 && m3[0]) return m3[0];
+      return str;
+    }
+    return str;
+  }
+
+  normalizeTableId(input) {
+    if (!input) return '';
+    const str = String(input);
+    if (/^https?:\/\//i.test(str)) {
+      const m = str.match(/(tbl[a-zA-Z0-9]+)/);
+      return m ? m[1] : '';
+    }
+    return str;
   }
 
   formatFeishuResponse(response) {
